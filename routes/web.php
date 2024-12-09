@@ -7,6 +7,7 @@ use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Models\Company;
 use App\Models\Consultation;
 use App\Models\Gen;
+use App\Models\LaundryOrder;
 use App\Models\Meeting;
 use App\Models\Project;
 use App\Models\ReportModel;
@@ -21,6 +22,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 
+Route::get('test-order', function () {
+    $latestOrder = LaundryOrder::latest()->first();
+
+    try {
+        $orderUrl = $latestOrder->get_payment_link();
+    } catch (\Exception $e) {
+        throw $e;
+    }
+    echo '<a href="' . $orderUrl . '">Pay for order url # ' . $orderUrl . '</a>';
+    die();
+});
 Route::get('migrate', function () {
     // Artisan::call('migrate');
     //do run laravel migration command

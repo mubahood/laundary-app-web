@@ -18,9 +18,10 @@ use Psy\Exception\BreakException;
  */
 class Transient implements Readline
 {
-    private $history;
-    private $historySize;
-    private $eraseDups;
+    private array $history;
+    private int $historySize;
+    private bool $eraseDups;
+    /** @var resource */
     private $stdin;
 
     /**
@@ -110,7 +111,7 @@ class Transient implements Readline
      *
      * @return false|string
      */
-    public function readline(string $prompt = null)
+    public function readline(?string $prompt = null)
     {
         echo $prompt;
 
