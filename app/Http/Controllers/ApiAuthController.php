@@ -8,6 +8,9 @@ use App\Models\DoseItem;
 use App\Models\DoseItemRecord;
 use App\Models\FlutterWaveLog;
 use App\Models\Image;
+use App\Models\LaundryOrder;
+use App\Models\LaundryOrderItem;
+use App\Models\LaundryOrderItemType;
 use App\Models\Meeting;
 use App\Models\PaymentRecord;
 use App\Models\Project;
@@ -100,7 +103,7 @@ class ApiAuthController extends Controller
         }
         $recs = DoseItemRecord::whereIn('consultation_id', $consultation_ids)
             ->get();
-        return $this->success($recs, $message = "Success", 200); 
+        return $this->success($recs, $message = "Success", 200);
     }
 
 
@@ -137,6 +140,12 @@ class ApiAuthController extends Controller
             $message = "Success",
             200
         );
+    }
+
+    public function laundry_order_item_types()
+    {
+        return $this->success(LaundryOrderItemType::where([])
+            ->get(), $message = "Success", 200);
     }
 
     public function tasks()
@@ -357,8 +366,8 @@ class ApiAuthController extends Controller
         $consultation->preferred_date_and_time = $val->preferred_date_and_time;
         $services_requested = $val->services_requested;
         $services_requested = str_replace('[', ',', $services_requested);
-        $services_requested = str_replace(']', ',', $services_requested); 
-        
+        $services_requested = str_replace(']', ',', $services_requested);
+
         $consultation->services_requested = $services_requested;
         $consultation->reason_for_consultation = $val->reason_for_consultation;
         $consultation->request_remarks = $val->request_remarks;
@@ -375,6 +384,247 @@ class ApiAuthController extends Controller
             'data' => $consultation,
             'code' => 1,
             'message' => 'Consultation created successfully.',
+        ]);
+    }
+
+
+    public function order_create_create(Request $val)
+    {
+        $u = auth('api')->user();
+        if ($u == null) {
+            return Utils::response([
+                'status' => 0,
+                'code' => 0,
+                'message' => "User not found.",
+            ]);
+        }
+
+        //validate for local_id
+        if ($val->local_id == null) {
+            return $this->error('Local ID is required.');
+        }
+
+        //local_id len > 5
+        if (strlen($val->local_id) < 5) {
+            return $this->error('Local ID is invalid.');
+        }
+ 
+
+        $order = LaundryOrder::where([
+            'local_id' => $val->local_id
+        ])->first();
+
+        $isCreating = false;
+        if ($order == null) {
+            $order = new LaundryOrder();
+            $isCreating = true;
+        } else {
+            $isCreating = false;
+        }
+
+
+        /*
+        	customer_name	customer_phone	customer_address	pickup_address	pickup_gps	delivery_address	special_instructions	total_amount	payment_status	payment_method	payment_date	stripe_payment_link	payment_reference	payment_notes	customer_photos	scheduled_pickup_time	assigned_driver_id	driver_id	actual_pickup_time	pickup_notes	laundry_delivery_time	washer_assignment_time	assigned_washer_id	washer_id	washing_start_time	washing_end_time	drying_start_time	drying_end_time	scheduled_delivery_time	delivery_driver_id	actual_delivery_time	delivery_notes	final_payment_date	receipt_approved_date	rating	driver_amount	driving_distance	feedback	local_id	 
+        */
+
+        $items_json = $val->items;
+        if ($items_json == null) {
+            return $this->error('Items are required.');
+        }
+        $items = [];
+        try {
+            $items = json_decode($items_json);
+        } catch (\Throwable $th) {
+            return $this->error('Failed to parse items.');
+        }
+
+        //ifnotarray
+        if (!is_array($items)) {
+            return $this->error('Items must be an array.');
+        }
+
+        if (count($items) < 1) {
+            return $this->error('Items must have at least one item.');
+        }
+
+        /* 
+        id	created_at	updated_at	name	type	customer_notes	customer_photos	quantity	price	total	order_id	order_number	status	washer_id	washer_name	washer_notes	washer_photos	local_id	order_local_id	laundry_order_item_type_id	
+
+        */
+
+        if ($isCreating) {
+            $order->user_id = $u->id;
+            $order->customer_name = $val->customer_name;
+            $order->customer_phone = $val->customer_phone;
+            $order->customer_address = $val->customer_address;
+            $order->pickup_address = $val->pickup_address;
+            $order->pickup_gps = $val->pickup_gps;
+            $order->delivery_address = $val->delivery_address;
+            $order->special_instructions = $val->special_instructions;
+            $order->total_amount = $val->total_amount;
+            $order->payment_status = $val->payment_status;
+            $order->payment_method = $val->payment_method;
+            $order->payment_date = $val->payment_date;
+            $order->stripe_payment_link = $val->stripe_payment_link;
+            $order->payment_reference = $val->payment_reference;
+            $order->payment_notes = $val->payment_notes;
+            $order->customer_photos = $val->customer_photos;
+            $order->scheduled_pickup_time = $val->scheduled_pickup_time;
+            $order->assigned_driver_id = $val->assigned_driver_id;
+            $order->driver_id = $val->driver_id;
+            $order->actual_pickup_time = $val->actual_pickup_time;
+            $order->pickup_notes = $val->pickup_notes;
+            $order->laundry_delivery_time = $val->laundry_delivery_time;
+            $order->washer_assignment_time = $val->washer_assignment_time;
+            $order->assigned_washer_id = $val->assigned_washer_id;
+            $order->washer_id = $val->washer_id;
+            $order->washing_start_time = $val->washing_start_time;
+            $order->washing_end_time = $val->washing_end_time;
+            $order->drying_start_time = $val->drying_start_time;
+            $order->drying_end_time = $val->drying_end_time;
+            $order->scheduled_delivery_time = $val->scheduled_delivery_time;
+            $order->delivery_driver_id = $val->delivery_driver_id;
+            $order->actual_delivery_time = $val->actual_delivery_time;
+            $order->delivery_notes = $val->delivery_notes;
+            $order->final_payment_date = $val->final_payment_date;
+            $order->receipt_approved_date = $val->receipt_approved_date;
+            $order->rating = $val->rating;
+            $order->driver_amount = $val->driver_amount;
+            $order->driving_distance = $val->driving_distance;
+            $order->feedback = $val->feedback;
+            $order->local_id = $val->local_id;
+        } else {
+            $order->customer_name = $val->customer_name;
+            $order->customer_phone = $val->customer_phone;
+            $order->customer_address = $val->customer_address;
+            $order->pickup_address = $val->pickup_address;
+            $order->pickup_gps = $val->pickup_gps;
+            $order->delivery_address = $val->delivery_address;
+            $order->special_instructions = $val->special_instructions;
+            $order->total_amount = $val->total_amount;
+            $order->payment_status = $val->payment_status;
+            $order->payment_method = $val->payment_method;
+            $order->payment_date = $val->payment_date;
+            $order->stripe_payment_link = $val->stripe_payment_link;
+            $order->payment_reference = $val->payment_reference;
+            $order->payment_notes = $val->payment_notes;
+            $order->customer_photos = $val->customer_photos;
+            $order->scheduled_pickup_time = $val->scheduled_pickup_time;
+            $order->assigned_driver_id = $val->assigned_driver_id;
+            $order->driver_id = $val->driver_id;
+            $order->actual_pickup_time = $val->actual_pickup_time;
+            $order->pickup_notes = $val->pickup_notes;
+            $order->laundry_delivery_time = $val->laundry_delivery_time;
+            $order->washer_assignment_time = $val->washer_assignment_time;
+            $order->assigned_washer_id = $val->assigned_washer_id;
+            $order->washer_id = $val->washer_id;
+            $order->washing_start_time = $val->washing_start_time;
+            $order->washing_end_time = $val->washing_end_time;
+            $order->drying_start_time = $val->drying_start_time;
+            $order->drying_end_time = $val->drying_end_time;
+            $order->scheduled_delivery_time = $val->scheduled_delivery_time;
+            $order->delivery_driver_id = $val->delivery_driver_id;
+            $order->actual_delivery_time = $val->actual_delivery_time;
+            $order->delivery_notes = $val->delivery_notes;
+            $order->final_payment_date = $val->final_payment_date;
+            $order->receipt_approved_date = $val->receipt_approved_date;
+            $order->rating = $val->rating;
+            $order->driver_amount = $val->driver_amount;
+            $order->driving_distance = $val->driving_distance;
+            $order->feedback = $val->feedback;
+            $order->local_id = $val->local_id;
+        }
+
+        try {
+            $order->save();
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+        $order = LaundryOrder::find($order->id);
+
+
+        foreach ($items as $item) {
+            $order_item = LaundryOrderItem::where([
+                'local_id' => $item->local_id
+            ])->first();
+            if ($order_item == null) {
+                $order_item = new LaundryOrderItem();
+            }
+            /* 
+            order_id	order_number	status	washer_id	washer_name	washer_notes	washer_photos		
+            */
+            //validate $item->name
+            if ($item->name == null || strlen($item->name) < 2) {
+                return $this->error('Item name is required.');
+            }
+            //validate $item->type 
+            if ($item->type == null || strlen($item->type) < 2) {
+                return $this->error('Item type is required.');
+            }
+            //customer_notes
+            if ($item->quantity == null || strlen($item->quantity) < 1) {
+                return $this->error('Item quantity is required.');
+            }
+            //price
+            if ($item->price == null || strlen($item->price) < 1) {
+                return $this->error('Item price is required.');
+            }
+            //total
+            if ($item->total == null || strlen($item->total) < 1) {
+                return $this->error('Item total is required.');
+            }
+
+            //local_id
+            if ($item->local_id == null || strlen($item->local_id) < 1) {
+                return $this->error('Item local_id is required.');
+            }
+            //order_local_id
+            if ($item->order_local_id == null || strlen($item->order_local_id) < 1) {
+                return $this->error('Item order_local_id is required.');
+            }
+
+            //laundry_order_item_type_id
+            if ($item->laundry_order_item_type_id == null || strlen($item->laundry_order_item_type_id) < 1) {
+                return $this->error('Item laundry_order_item_type_id is required.');
+            }
+
+            if ($order_item == null) {
+                $order_item = new LaundryOrderItem();
+            }
+
+            $order_item->name = $item->name;
+            $order_item->type = $item->type;
+            $order_item->customer_notes = $item->customer_notes;
+            $order_item->customer_photos = $item->customer_photos;
+            $order_item->quantity = $item->quantity;
+            $order_item->price = $item->price;
+            $order_item->total = $item->total;
+            $order_item->order_id = $order->id;
+            $order_item->order_number = $order->order_number;
+            $order_item->status = $item->status;
+            $order_item->washer_id = $item->washer_id;
+            $order_item->washer_name = $item->washer_name;
+            $order_item->washer_notes = $item->washer_notes;
+            $order_item->washer_photos = $item->washer_photos;
+            $order_item->local_id = $item->local_id;
+            $order_item->order_local_id = $order->local_id;
+            $order_item->laundry_order_item_type_id = $item->laundry_order_item_type_id;
+            $order_item->save();
+        }
+
+
+        $message = "Order created successfully.";
+        if ($isCreating) {
+            $message = "Order created successfully.";
+        } else {
+            $message = "Order updated successfully.";
+        }
+
+        return Utils::response([
+            'status' => 1,
+            'data' => $order,
+            'code' => 1,
+            'message' => $message,
         ]);
     }
 

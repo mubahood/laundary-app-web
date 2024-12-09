@@ -704,7 +704,6 @@ class Utils extends Model
                 echo "failed <br>";
             }
         }
-
     }
 
 
@@ -914,7 +913,7 @@ class Utils extends Model
 
     public static function system_boot()
     {
-
+        return;
         Consultation::process_ongoing_consultations();
         Consultation::process_dosages();
         $u = Admin::user();
