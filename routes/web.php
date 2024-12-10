@@ -23,7 +23,21 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::get('test-order', function () {
+    
     $latestOrder = LaundryOrder::latest()->first();
+    //if 
+    if ($latestOrder == null) {
+        throw new \Exception('No order found');
+    }
+    if(strtolower($latestOrder->payment_status) == 'paid'){
+        return 'Order already paid';
+    }
+    try {
+        $orderUrl = $latestOrder->get_payment_link();
+    } catch (\Exception $e) {
+    }
+    dd($d);
+    $d = $latestOrder->get_payment_link();
 
     try {
         $orderUrl = $latestOrder->get_payment_link();

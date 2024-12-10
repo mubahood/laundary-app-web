@@ -63,8 +63,8 @@ local_id
 */
     public function get_payment_link()
     {
-        if ($this->stripe_url != null && strlen($this->stripe_url) > 5) {
-            return $this->stripe_url;
+        if ($this->stripe_payment_link != null && strlen($this->stripe_payment_link) > 5 && $this->payment_reference != null && strlen($this->payment_reference) > 2) {
+            return $this->stripe_payment_link;
         }
 
         $stripe = env('STRIPE_KEY');
@@ -109,8 +109,69 @@ local_id
             throw new \Exception("Error Processing Request", 1);
         }
 
-        $this->stripe_url = $linkResp->url;
+        $this->stripe_payment_link = $linkResp->url;
+        $this->payment_reference = $linkResp->id;
         $this->save();
         return $linkResp->url;
+    }
+
+    //is_order_paid check with stripe
+    public function is_order_paid()
+    {
+        //check payment_status is yes
+        if ($this->payment_status == 'Paid') {
+            return 'Paid';
+        }
+
+        //check if stripe_payment_link is not empty
+        if ($this->stripe_payment_link == null || strlen($this->stripe_payment_link) < 5) {
+            return 'Not Paid';
+        }
+
+        $stripe = new \Stripe\StripeClient(
+            env('STRIPE_KEY')
+        );
+
+        try {
+            $paymentLink = $stripe->paymentLinks->retrieve(
+                $this->payment_reference
+            );
+
+            // Check the status of the payment link
+            if ($paymentLink->status == 'paid') {
+                $sql = "UPDATE laundry_orders SET payment_status = 'Paid', payment_date = '" . date('Y-m-d H:i:s') . "' WHERE id = " . $this->id;
+                $this->payment_status = 'Paid';
+                $this->payment_date = date('Y-m-d H:i:s');
+                $this->save();
+                return 'Paid';
+            } elseif ($paymentLink->status === 'requires_payment_method') {
+                return 'Not Paid';
+            } else {
+                return 'Not Paid';
+            }
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+        return 'Not Paid';
+
+        $payment = null;
+        try {
+            $payment = $stripe->paymentIntents->retrieve(
+                $this->payment_reference,
+                []
+            );
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+        if ($payment == null) {
+            return 'Not Paid';
+        }
+        if ($payment->status == 'succeeded') {
+            $this->payment_status = 'Paid';
+            $this->payment_date = date('Y-m-d H:i:s');
+            $this->save();
+            return 'Paid';
+        }
+        return 'Not Paid';
     }
 }

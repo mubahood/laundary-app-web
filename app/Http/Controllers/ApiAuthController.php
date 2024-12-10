@@ -408,7 +408,7 @@ class ApiAuthController extends Controller
         if (strlen($val->local_id) < 5) {
             return $this->error('Local ID is invalid.');
         }
- 
+
 
         $order = LaundryOrder::where([
             'local_id' => $val->local_id
@@ -628,6 +628,21 @@ class ApiAuthController extends Controller
         ]);
     }
 
+
+    public function get_order_payment_link(Request $val)
+    {
+        $order = LaundryOrder::find($val->id);
+        if ($order == null) {
+            return $this->error('Order not found.');
+        }
+        try {
+            $order->get_payment_link();
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+        $order = LaundryOrder::find($val->id);
+        return $this->success($order, $message = "Success", 200);
+    }
 
     public function tasks_create(Request $val)
     {
@@ -956,6 +971,41 @@ class ApiAuthController extends Controller
         return $this->success($paymentRecord, $message = "Payment successful.", 1);
     }
 
+
+
+    public function stripe_payment_verification(Request $request)
+    {
+        $fw = LaundryOrder::find($request->id);
+        if ($fw == null) {
+            return Utils::response([
+                'status' => 0,
+                'message' => "Payment record not found."
+            ]);
+        }
+        if ($fw->payment_status == 'Paid') {
+            return Utils::response([
+                'status' => 1,
+                'message' => 'Payment successful.',
+                'data' => $fw
+            ]);
+        }
+
+        $fw->is_order_paid();
+        $fw = LaundryOrder::find($request->id);
+        if ($fw->payment_status == 'Paid') {
+            return Utils::response([
+                'status' => 1,
+                'message' => 'Payment successful.',
+                'data' => $fw
+            ]);
+        } else {
+            return Utils::response([
+                'status' => 0,
+                'message' => "Payment not successful.",
+                'data' => $fw
+            ]);
+        }
+    }
 
 
     public function flutterwave_payment_verification(Request $request)
