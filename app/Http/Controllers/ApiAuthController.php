@@ -72,6 +72,16 @@ class ApiAuthController extends Controller
         ])->get(), $message = "Success", 200);
     }
 
+    public function laundry_orders()
+    {
+        $u = auth('api')->user();
+        if ($u == null) {
+            return $this->error('Account not found');
+        }
+
+        return $this->success(LaundryOrder::where([])->get(), $message = "Success", 200);
+    }
+
     public function projects()
     {
         $u = auth('api')->user();
@@ -429,7 +439,9 @@ class ApiAuthController extends Controller
 
         $items_json = $val->items;
         if ($items_json == null) {
-            return $this->error('Items are required.');
+            if ($isCreating) {
+                return $this->error('Items are required.');
+            }
         }
         $items = [];
         try {
@@ -444,7 +456,9 @@ class ApiAuthController extends Controller
         }
 
         if (count($items) < 1) {
-            return $this->error('Items must have at least one item.');
+            if ($isCreating) {
+                return $this->error('Items must have at least one item.');
+            }
         }
 
         /* 
@@ -533,6 +547,7 @@ class ApiAuthController extends Controller
             $order->driving_distance = $val->driving_distance;
             $order->feedback = $val->feedback;
             $order->local_id = $val->local_id;
+            $order->status = $val->status;
         }
 
         try {

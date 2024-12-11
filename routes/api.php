@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware([EnsureTokenIsValid::class])->group(function () {});
 Route::get('users/me', [ApiAuthController::class, 'me']);
 Route::get('users', [ApiAuthController::class, 'users']);
+Route::get('laundry-orders', [ApiAuthController::class, 'laundry_orders']);
 Route::get('tasks', [ApiAuthController::class, 'tasks']);
 Route::get('laundry-order-item-types', [ApiAuthController::class, 'laundry_order_item_types']);
 Route::get('consultations', [ApiAuthController::class, 'consultations']);

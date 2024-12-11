@@ -9,6 +9,52 @@ class LaundryOrder extends Model
 {
     use HasFactory;
 
+    //boot
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            $m = self::do_prepare($model);
+            return $m;
+        });
+        static::updating(function ($model) {
+            $m = self::do_prepare($model);
+            return $m;
+        });
+    }
+
+    //static do prepare
+    public static function do_prepare($data)
+    {
+        $customer = User::find($data->user_id);
+        if ($customer == null) {
+            throw new \Exception("Customer not found", 1);
+        }
+        //customer_name
+        if ($data->customer_name == null || strlen($data->customer_name) < 2) {
+            $data->customer_name = $customer->name;
+        }
+        //customer_phone
+        if ($data->customer_phone == null || strlen($data->customer_phone) < 2) {
+            $data->customer_phone = $customer->phone_number_1;
+        }
+        //customer_address
+        if ($data->customer_address == null || strlen($data->customer_address) < 2) {
+            $data->customer_address = $customer->home_address;
+        }
+
+        //pickup_address
+        if ($data->pickup_address == null || strlen($data->pickup_address) < 2) {
+            $data->pickup_address = $customer->home_address;
+        }
+
+        //delivery_address
+        if ($data->delivery_address == null || strlen($data->delivery_address) < 2) {
+            $data->delivery_address = $data->pickup_address;
+        }
+    }
+
+
     //belongs to customer
     public function customer()
     {
@@ -20,13 +66,8 @@ id
 created_at
 updated_at
 user_id
-customer_name
-customer_phone
-customer_address
-pickup_address
-pickup_gps
-delivery_address
-special_instructions
+ 
+
 total_amount
 payment_status
 payment_method
@@ -174,4 +215,19 @@ local_id
         }
         return 'Not Paid';
     }
+
+    //getter for driver_text attribute
+    public function getDriverTextAttribute()
+    {
+        if ($this->driver_id == null) {
+            return "Not Assigned";
+        }
+        $driver = User::find($this->driver_id);
+        if ($driver == null) {
+            return "Not Assigned";
+        }
+        return $driver->name;
+    }
+    //appends driver_text
+    protected $appends = ['driver_text'];
 }
