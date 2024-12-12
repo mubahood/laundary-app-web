@@ -432,39 +432,192 @@ class ApiAuthController extends Controller
             $isCreating = false;
         }
 
+        $accepted_tasks = [
+            'BILLING',
+            'PICKUP',
+            strtoupper('Picked Up'),
+            'ASSIGN WASHER',
+        ];
 
-        /*
-        	customer_name	customer_phone	customer_address	pickup_address	pickup_gps	delivery_address	special_instructions	total_amount	payment_status	payment_method	payment_date	stripe_payment_link	payment_reference	payment_notes	customer_photos	scheduled_pickup_time	assigned_driver_id	driver_id	actual_pickup_time	pickup_notes	laundry_delivery_time	washer_assignment_time	assigned_washer_id	washer_id	washing_start_time	washing_end_time	drying_start_time	drying_end_time	scheduled_delivery_time	delivery_driver_id	actual_delivery_time	delivery_notes	final_payment_date	receipt_approved_date	rating	driver_amount	driving_distance	feedback	local_id	 
-        */
-
-        $items_json = $val->items;
-        if ($items_json == null) {
-            if ($isCreating) {
-                return $this->error('Items are required.');
+        if (!$isCreating) {
+            if (!in_array($val->task, $accepted_tasks)) {
+                return $this->error('Invalid order status. #' . $val->task);
             }
         }
-        $items = [];
-        try {
-            $items = json_decode($items_json);
-        } catch (\Throwable $th) {
-            return $this->error('Failed to parse items.');
-        }
+        if (!$isCreating && $val->task == 'ASSIGN WASHER') {
+            $washer = User::find($val->washer_id);
+            if ($washer == null) {
+                return $this->error('Washer not found.');
+            }
 
-        //ifnotarray
-        if (!is_array($items)) {
-            return $this->error('Items must be an array.');
-        }
 
-        if (count($items) < 1) {
-            if ($isCreating) {
+            $items_json = $val->items;
+            if ($items_json == null) {
+                if ($isCreating) {
+                    return $this->error('Items are required.');
+                }
+            }
+            $items = [];
+            try {
+                $items = json_decode($items_json);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to parse items.');
+            }
+
+            //ifnotarray
+            if (!is_array($items)) {
+                return $this->error('Items must be an array.');
+            }
+
+            if (count($items) < 1) {
                 return $this->error('Items must have at least one item.');
             }
+
+
+            foreach ($items as $item) {
+                $order_item = LaundryOrderItem::where([
+                    'local_id' => $item->local_id
+                ])->first();
+                if ($order_item == null) {
+                    $order_item = new LaundryOrderItem();
+                }
+                /* 
+                order_id	order_number	status	washer_id	washer_name	washer_notes	washer_photos		
+                */
+                //validate $item->name
+                if ($item->name == null || strlen($item->name) < 2) {
+                    return $this->error('Item name is required.');
+                }
+                //validate $item->type 
+                if ($item->type == null || strlen($item->type) < 2) {
+                    return $this->error('Item type is required.');
+                }
+                //customer_notes
+                if ($item->quantity == null || strlen($item->quantity) < 1) {
+                    return $this->error('Item quantity is required.');
+                }
+                //price
+                if ($item->price == null || strlen($item->price) < 1) {
+                    return $this->error('Item price is required.');
+                }
+                //total
+                if ($item->total == null || strlen($item->total) < 1) {
+                    return $this->error('Item total is required.');
+                }
+
+                //local_id
+                if ($item->local_id == null || strlen($item->local_id) < 1) {
+                    return $this->error('Item local_id is required.');
+                }
+                //order_local_id
+                if ($item->order_local_id == null || strlen($item->order_local_id) < 1) {
+                    return $this->error('Item order_local_id is required.');
+                }
+
+                //laundry_order_item_type_id
+                if ($item->laundry_order_item_type_id == null || strlen($item->laundry_order_item_type_id) < 1) {
+                    return $this->error('Item laundry_order_item_type_id is required.');
+                }
+
+                if ($order_item == null) {
+                    $order_item = new LaundryOrderItem();
+                }
+
+                $order_item->name = $item->name;
+                $order_item->type = $item->type;
+                $order_item->customer_notes = $item->customer_notes;
+                $order_item->customer_photos = $item->customer_photos;
+                $order_item->quantity = $item->quantity;
+                $order_item->price = $item->price;
+                $order_item->total = $item->total;
+                $order_item->order_id = $order->id;
+                $order_item->order_number = $order->order_number;
+                $order_item->status = $item->status;
+                $order_item->washer_id = $item->washer_id;
+                $order_item->washer_name = $item->washer_name;
+                $order_item->washer_notes = $item->washer_notes;
+                $order_item->washer_photos = $item->washer_photos;
+                $order_item->local_id = $item->local_id;
+                $order_item->order_local_id = $order->local_id;
+                $order_item->laundry_order_item_type_id = $item->laundry_order_item_type_id;
+                $order_item->save();
+            }
+
+            $order->washer_id = $washer->id;
+            $order->status = strtoupper('Awaiting Washing');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Washer assigned successfully.", 200);
+        }
+        if (!$isCreating && $val->task == 'BILLING') {
+            //total_amount float
+            $total_amount = (float) $val->total_amount;
+            if (!is_float($total_amount)) {
+                return $this->error('Total amount must be a float.');
+            }
+            //service_amount float
+            $service_amount = (float)$val->service_amount;
+            if (!is_float($service_amount)) {
+                return $this->error('Service amount must be a float.');
+            }
+
+            //washing_amount float
+            $washing_amount = (float) $val->washing_amount;
+            if (!is_float($washing_amount)) {
+                return $this->error('Washing amount must be a float.');
+            }
+            $order->total_amount = $total_amount;
+            $order->service_amount = $service_amount;
+            $order->washing_amount = $washing_amount;
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Billing updated successfully.", 200);
         }
 
-        /* 
-        id	created_at	updated_at	name	type	customer_notes	customer_photos	quantity	price	total	order_id	order_number	status	washer_id	washer_name	washer_notes	washer_photos	local_id	order_local_id	laundry_order_item_type_id	
+        if (!$isCreating && $val->task == 'PICKUP') {
+            //driver_id
+            $driver = User::find($val->driver_id);
+            if ($driver == null) {
+                return $this->error('Driver not found.');
+            }
+            $order->driver_id = $driver->id;
+            $order->pickup_notes = $val->pickup_notes;
+            $order->pickup_address = $val->pickup_address;
+            $order->status = 'Awaiting Pickup';
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Pickup updated successfully.", 200);
+        }
 
-        */
+        if (!$isCreating && $val->task == strtoupper('Picked Up')) {
+            $order->status = strtoupper('Picked Up');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Order picked up successfully.", 200);
+        }
+
+        if (!$isCreating) {
+            return $this->error('Invalid task #' . $val->task);
+        }
+
+
+
 
         if ($isCreating) {
             $order->user_id = $u->id;
@@ -556,76 +709,6 @@ class ApiAuthController extends Controller
             return $this->error($th->getMessage());
         }
         $order = LaundryOrder::find($order->id);
-
-
-        foreach ($items as $item) {
-            $order_item = LaundryOrderItem::where([
-                'local_id' => $item->local_id
-            ])->first();
-            if ($order_item == null) {
-                $order_item = new LaundryOrderItem();
-            }
-            /* 
-            order_id	order_number	status	washer_id	washer_name	washer_notes	washer_photos		
-            */
-            //validate $item->name
-            if ($item->name == null || strlen($item->name) < 2) {
-                return $this->error('Item name is required.');
-            }
-            //validate $item->type 
-            if ($item->type == null || strlen($item->type) < 2) {
-                return $this->error('Item type is required.');
-            }
-            //customer_notes
-            if ($item->quantity == null || strlen($item->quantity) < 1) {
-                return $this->error('Item quantity is required.');
-            }
-            //price
-            if ($item->price == null || strlen($item->price) < 1) {
-                return $this->error('Item price is required.');
-            }
-            //total
-            if ($item->total == null || strlen($item->total) < 1) {
-                return $this->error('Item total is required.');
-            }
-
-            //local_id
-            if ($item->local_id == null || strlen($item->local_id) < 1) {
-                return $this->error('Item local_id is required.');
-            }
-            //order_local_id
-            if ($item->order_local_id == null || strlen($item->order_local_id) < 1) {
-                return $this->error('Item order_local_id is required.');
-            }
-
-            //laundry_order_item_type_id
-            if ($item->laundry_order_item_type_id == null || strlen($item->laundry_order_item_type_id) < 1) {
-                return $this->error('Item laundry_order_item_type_id is required.');
-            }
-
-            if ($order_item == null) {
-                $order_item = new LaundryOrderItem();
-            }
-
-            $order_item->name = $item->name;
-            $order_item->type = $item->type;
-            $order_item->customer_notes = $item->customer_notes;
-            $order_item->customer_photos = $item->customer_photos;
-            $order_item->quantity = $item->quantity;
-            $order_item->price = $item->price;
-            $order_item->total = $item->total;
-            $order_item->order_id = $order->id;
-            $order_item->order_number = $order->order_number;
-            $order_item->status = $item->status;
-            $order_item->washer_id = $item->washer_id;
-            $order_item->washer_name = $item->washer_name;
-            $order_item->washer_notes = $item->washer_notes;
-            $order_item->washer_photos = $item->washer_photos;
-            $order_item->local_id = $item->local_id;
-            $order_item->order_local_id = $order->local_id;
-            $order_item->laundry_order_item_type_id = $item->laundry_order_item_type_id;
-            $order_item->save();
-        }
 
 
         $message = "Order created successfully.";
