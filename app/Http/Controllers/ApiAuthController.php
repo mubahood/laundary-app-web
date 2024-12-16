@@ -289,18 +289,21 @@ class ApiAuthController extends Controller
 
 
         if (!Utils::phone_number_is_valid($phone_number)) {
-            return $this->error('Invalid phone number. ' . $phone_number);
+            return $this->error('Invalid phone number. -=>' . $phone_number);
         }
 
         if ($r->password == null) {
             return $this->error('Password is required.');
         }
 
+        //check if  password is greater than 6
+        if (strlen($r->password) < 4) {
+            return $this->error('Password must be at least 6 characters.');
+        }
+
         if ($r->name == null) {
             return $this->error('Name is required.');
         }
-
-
 
 
 
@@ -313,8 +316,15 @@ class ApiAuthController extends Controller
         $user = new Administrator();
 
         $name = $r->name;
+        //replace all spaces with single space
+        $name = preg_replace('!\s+!', ' ', $name);
 
         $x = explode(' ', $name);
+
+        //check if last name is set
+        if (!isset($x[1])) {
+            return $this->error('Last name is required.');
+        }
 
         if (
             isset($x[0]) &&
@@ -436,13 +446,89 @@ class ApiAuthController extends Controller
             'BILLING',
             'PICKUP',
             strtoupper('Picked Up'),
+            strtoupper('Washing in Progress'),
             'ASSIGN WASHER',
+            'READY FOR DELIVERY',
+            'OUT FOR DELIVERY',
+            'DELIVERED',
+            'COMPLETED',
         ];
 
         if (!$isCreating) {
-            if (!in_array($val->task, $accepted_tasks)) {
-                return $this->error('Invalid order status. #' . $val->task);
+            if (!in_array(trim($val->task), $accepted_tasks)) {
+                return $this->error('Invalid order status. -> #' . $val->task);
             }
+        }
+        //COMPLETED
+        if (!$isCreating && $val->task == 'COMPLETED') {
+            //CHECK if order is paid
+            $is_paid = 'Not Paid';
+            try {
+                $order->is_order_paid();
+            } catch (\Throwable $th) {
+                return $this->error($th->getMessage());
+            }
+            if ($order->payment_status != 'Paid') {
+                return $this->error('Order is not paid.');
+            }
+            $order->status = strtoupper('COMPLETED');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Order completed successfully.", 200);
+        }
+        if (!$isCreating && $val->task == 'DELIVERED') {
+            if ($order->delivery_notes != trim($val->delivery_notes)) {
+                return $this->error('Invalid delivery CODE.');
+            }
+            $order->status = strtoupper('DELIVERED');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Order delivered successfully.", 200);
+        }
+        if (!$isCreating && $val->task == 'OUT FOR DELIVERY') {
+            $order->status = strtoupper('OUT FOR DELIVERY');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Order is out for delivery.", 200);
+        }
+
+        if (!$isCreating && $val->task == 'READY FOR DELIVERY') {
+            $driver = User::find($val->driver_id);
+            if ($driver == null) {
+                return $this->error('Driver not found.');
+            }
+            $order->driver_id = $driver->id;
+            $order->status = strtoupper('Ready for Delivery');
+            $order->delivery_notes = rand(10000, 99999);  //generate random number
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Ready for delivery.", 200);
+        }
+        if (!$isCreating && $val->task == 'WASHING IN PROGRESS') {
+            $order->status = strtoupper('Washing in Progress');
+            try {
+                $order->save();
+                $order = LaundryOrder::find($order->id);
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update order because ' . $th->getMessage());
+            }
+            return $this->success($order, $message = "Washing in progress.", 200);
         }
         if (!$isCreating && $val->task == 'ASSIGN WASHER') {
             $washer = User::find($val->washer_id);
