@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class LaundryOrder extends Model
 {
@@ -15,6 +16,7 @@ class LaundryOrder extends Model
         parent::boot();
         static::creating(function ($model) {
             $m = self::do_prepare($model);
+            $m->status = 'PENDING';
             return $m;
         });
         static::updating(function ($model) {
@@ -52,6 +54,8 @@ class LaundryOrder extends Model
         if ($data->delivery_address == null || strlen($data->delivery_address) < 2) {
             $data->delivery_address = $data->pickup_address;
         }
+        $data->status = strtoupper($data->status);
+        return $data;
     }
 
 
@@ -230,4 +234,33 @@ local_id
     }
     //appends driver_text
     protected $appends = ['driver_text'];
+
+    /* //status getter
+    public function getStatusAttribute($value)
+    {
+        $accepted_tasks = [
+            'BILLING',
+            'READY FOR PAYMENT',
+            'PICKUP',
+            strtoupper('Picked Up'),
+            strtoupper('Washing in Progress'),
+            'ASSIGN WASHER',
+            'READY FOR DELIVERY',
+            'OUT FOR DELIVERY',
+            'DELIVERED',
+            'COMPLETED',
+            'PENDING',
+        ];
+        //check if value is in accepted tasks
+        if (in_array($value, $accepted_tasks)) {
+            return $value;
+        }
+        $status = $value;
+        if (!in_array($value, $accepted_tasks)) {
+            $status = 'PENDING';
+            $sql = "UPDATE laundry_orders SET status = 'PENDING' WHERE id = " . $this->id;
+            DB::update($sql);
+        }
+        return $status;
+    } */
 }

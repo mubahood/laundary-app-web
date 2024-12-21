@@ -128,6 +128,7 @@ return array(
     'App\\Models\\Task' => $baseDir . '/app/Models/Task.php',
     'App\\Models\\TreatmentRecord' => $baseDir . '/app/Models/TreatmentRecord.php',
     'App\\Models\\TreatmentRecordItem' => $baseDir . '/app/Models/TreatmentRecordItem.php',
+    'App\\Models\\Trip' => $baseDir . '/app/Models/Trip.php',
     'App\\Models\\User' => $baseDir . '/app/Models/User.php',
     'App\\Models\\UserHasProgram' => $baseDir . '/app/Models/UserHasProgram.php',
     'App\\Models\\Utils' => $baseDir . '/app/Models/Utils.php',

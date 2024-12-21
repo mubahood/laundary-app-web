@@ -23,6 +23,9 @@ Route::middleware([EnsureTokenIsValid::class])->group(function () {});
 Route::get('users/me', [ApiAuthController::class, 'me']);
 Route::get('users', [ApiAuthController::class, 'users']);
 Route::get('laundry-orders', [ApiAuthController::class, 'laundry_orders']);
+Route::get('my-roles', [ApiAuthController::class, 'my_roles']);
+
+
 Route::get('tasks', [ApiAuthController::class, 'tasks']);
 Route::get('laundry-order-item-types', [ApiAuthController::class, 'laundry_order_item_types']);
 Route::get('consultations', [ApiAuthController::class, 'consultations']);
@@ -41,6 +44,7 @@ Route::POST("password-change", [ApiAuthController::class, 'password_change']);
 Route::POST("tasks-create", [ApiAuthController::class, 'tasks_create']);
 Route::POST("consultation-create", [ApiAuthController::class, 'consultation_create']);
 Route::POST("order-create", [ApiAuthController::class, 'order_create_create']);
+Route::POST("trip-create", [ApiAuthController::class, 'trip_create']);
 Route::POST("get-order-payment-link", [ApiAuthController::class, 'get_order_payment_link']);
 Route::POST("meetings", [ApiAuthController::class, 'meetings_create']);
 Route::POST("tasks-update-status", [ApiAuthController::class, 'tasks_update_status']);

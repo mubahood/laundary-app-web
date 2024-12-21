@@ -11,7 +11,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Encore\Admin\Auth\Database\Administrator;
-
+use Encore\Admin\Facades\Admin;
 
 class User extends Authenticatable implements JWTSubject
 {
@@ -398,5 +398,35 @@ class User extends Authenticatable implements JWTSubject
         } else {
             return $this;
         }
+    }
+
+    //GET my roles
+    public function get_my_roles()
+    {
+        $_roles = AdminRoleUser::where('user_id', $this->id)->get();
+        $roles = [];
+        foreach ($_roles as $key => $value) {
+            $role = AdminRole::find($value->role_id);
+            $roles[] = $role;
+        }
+
+        //check if $roles is empty and create one
+        if (count($roles) < 1) {
+            $adminRole = new AdminRoleUser();
+            $adminRole->role_id = 2;
+            $adminRole->user_id = $this->id;
+            $adminRole->save();
+        }else{
+            return $roles;
+        }
+
+        $roles = [];
+        $_roles = AdminRoleUser::where('user_id', $this->id)->get();
+        foreach ($_roles as $key => $value) {
+            $role = AdminRole::find($value->role_id);
+            $roles[] = $role;
+        }
+
+        return [$roles];
     }
 }

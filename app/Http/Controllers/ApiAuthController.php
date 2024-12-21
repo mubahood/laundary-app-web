@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminRoleUser;
 use App\Models\Consultation;
 use App\Models\DoseItem;
 use App\Models\DoseItemRecord;
@@ -16,6 +17,7 @@ use App\Models\PaymentRecord;
 use App\Models\Project;
 use App\Models\Service;
 use App\Models\Task;
+use App\Models\Trip;
 use App\Models\User;
 use App\Models\Utils;
 use App\Traits\ApiResponser;
@@ -67,9 +69,30 @@ class ApiAuthController extends Controller
             return $this->error('Account not found');
         }
 
-        return $this->success(User::where([
-            'company_id' => $u->company_id
-        ])->get(), $message = "Success", 200);
+        $admin_user_roles = AdminRoleUser::wherein('role_id', [1, 3, 4])
+            ->get()
+            ->pluck('user_id')
+            ->toArray();
+
+        $users = User::wherein('id', $admin_user_roles)
+            ->get();
+
+        return $this->success($users, $message = "Success", 200);
+    }
+
+    public function my_roles()
+    {
+        $u = auth('api')->user();
+        if ($u == null) {
+            return $this->error('Account not found');
+        }
+        $u = User::find($u->id);
+        if ($u == null) {
+            return $this->error('Account not found');
+        }
+        $roles = $u->get_my_roles();
+        return $this->success($roles, $message = "Success", 200);
+        return $this->success($u->get_my_roles(), $message = "Success", 200);
     }
 
     public function laundry_orders()
@@ -79,7 +102,44 @@ class ApiAuthController extends Controller
             return $this->error('Account not found');
         }
 
-        return $this->success(LaundryOrder::where([])->get(), $message = "Success", 200);
+        $orders = [];
+        //admin
+        //customer
+        //driver
+        //washer
+
+        //if admin
+        if ($u->isRole('admin')) {
+            $orders = LaundryOrder::where([])
+                ->get();
+        }
+
+        //if customer
+        if ($u->isRole('customer')) {
+            $orders = LaundryOrder::where([
+                'user_id' => $u->id
+            ])
+                ->get();
+        }
+
+        //if driver
+        if ($u->isRole('driver')) {
+            $orders = LaundryOrder::where([
+                'driver_id' => $u->id
+            ])
+                ->get();
+        }
+
+        //if washer
+        if ($u->isRole('washer')) {
+            $orders[] = LaundryOrder::where([
+                'washer_id' => $u->id
+            ])
+                ->get();
+        }
+
+
+        return $this->success($orders, $message = "Success", 200);
     }
 
     public function projects()
@@ -408,6 +468,85 @@ class ApiAuthController extends Controller
     }
 
 
+    public function trip_create(Request $val)
+    {
+        $u = auth('api')->user();
+        if ($u == null) {
+            return Utils::response([
+                'status' => 0,
+                'code' => 0,
+                'message' => "User not found.",
+            ]);
+        }
+        if ($val->is_creating == 'YES') {
+            $trip = new Trip();
+            $trip->driver_id = $u->id;
+
+            $existingTrip = Trip::where([
+                'driver_id' => $u->id,
+                'status' => 'ONGOING',
+                'type' => $val->type,
+            ])->first();
+            if ($existingTrip != null) {
+                return Utils::response([
+                    'status' => 0,
+                    'code' => 0,
+                    'message' => "You already have an active trip for ({$val->type}).",
+                ]);
+            }
+            $trip->type = $val->type;
+            $trip->status = 'ONGOING';
+            $trip->start_location = $val->start_location;
+            $trip->end_location = $val->end_location;
+            $trip->vehicle = $val->vehicle;
+            $trip->payment_status = 'NOT PAID';
+            $trip->start_time = Carbon::now();
+            $trip->notes = date('Y-m-d,H:ia') . ' - ' . $val->type;
+            $trip->code = rand(10000, 99999);
+
+            try {
+                $trip->save();
+                $trip = Trip::find($trip->id);
+                if ($trip == null) {
+                    return Utils::response([
+                        'status' => 0,
+                        'code' => 0,
+                        'message' => "Failed to find create trip.",
+                    ]);
+                } 
+            } catch (\Throwable $th) {
+                return $this->error('Failed to create trip because ' . $th->getMessage());
+            }
+            return Utils::response([
+                'status' => 1,
+                'data' => $trip,
+                'code' => 1,
+                'message' => 'Trip created successfully.',
+            ]);
+        } else if ($val->is_creating == 'NO') {
+            $trip = Trip::find($val->id);
+            if ($trip == null) {
+                return Utils::response([
+                    'status' => 0,
+                    'code' => 0,
+                    'message' => "Trip not found.",
+                ]);
+            }
+        } else {
+            return Utils::response([
+                'status' => 0,
+                'code' => 0,
+                'message' => "Invalid request.",
+            ]);
+        }
+        /* 
+
+        	id	created_at	updated_at	type	status	start_location	end_location	start_time	end_time	driver_id	vehicle	items	distance	duration	amount	payment_status	payment_method	payment_date	code	code_verification	notes	
+
+
+        */
+    }
+
     public function order_create_create(Request $val)
     {
         $u = auth('api')->user();
@@ -441,6 +580,74 @@ class ApiAuthController extends Controller
         } else {
             $isCreating = false;
         }
+
+        if ($isCreating) {
+            $order->user_id = $u->id;
+            $order->customer_name = $val->customer_name;
+            $order->customer_phone = $val->customer_phone;
+            $order->customer_address = $val->customer_address;
+            $order->pickup_address = $val->pickup_address;
+            $order->pickup_gps = $val->pickup_gps;
+            $order->delivery_address = $val->delivery_address;
+            $order->special_instructions = $val->special_instructions;
+            $order->total_amount = $val->total_amount;
+            $order->payment_status = $val->payment_status;
+            $order->payment_method = $val->payment_method;
+            $order->payment_date = $val->payment_date;
+            $order->stripe_payment_link = $val->stripe_payment_link;
+            $order->payment_reference = $val->payment_reference;
+            $order->payment_notes = $val->payment_notes;
+            $order->customer_photos = $val->customer_photos;
+            $order->scheduled_pickup_time = $val->scheduled_pickup_time;
+            $order->assigned_driver_id = $val->assigned_driver_id;
+            $order->driver_id = $val->driver_id;
+            $order->actual_pickup_time = $val->actual_pickup_time;
+            $order->pickup_notes = $val->pickup_notes;
+            $order->laundry_delivery_time = $val->laundry_delivery_time;
+            $order->washer_assignment_time = $val->washer_assignment_time;
+            $order->assigned_washer_id = $val->assigned_washer_id;
+            $order->washer_id = $val->washer_id;
+            $order->washing_start_time = $val->washing_start_time;
+            $order->washing_end_time = $val->washing_end_time;
+            $order->drying_start_time = $val->drying_start_time;
+            $order->drying_end_time = $val->drying_end_time;
+            $order->scheduled_delivery_time = $val->scheduled_delivery_time;
+            $order->delivery_driver_id = $val->delivery_driver_id;
+            $order->actual_delivery_time = $val->actual_delivery_time;
+            $order->delivery_notes = $val->delivery_notes;
+            $order->final_payment_date = $val->final_payment_date;
+            $order->receipt_approved_date = $val->receipt_approved_date;
+            $order->rating = $val->rating;
+            $order->driver_amount = $val->driver_amount;
+            $order->driving_distance = $val->driving_distance;
+            $order->feedback = $val->feedback;
+            $order->local_id = $val->local_id;
+            $order->status = 'PENDING';
+
+
+            try {
+                $order->save();
+            } catch (\Throwable $th) {
+                return $this->error($th->getMessage());
+            }
+            $order = LaundryOrder::find($order->id);
+
+
+            $message = "Order created successfully.";
+            if ($isCreating) {
+                $message = "Order created successfully.";
+            } else {
+                $message = "Order updated successfully.";
+            }
+
+            return Utils::response([
+                'status' => 1,
+                'data' => $order,
+                'code' => 1,
+                'message' => $message,
+            ]);
+        }
+
 
         $accepted_tasks = [
             'BILLING',
@@ -640,8 +847,24 @@ class ApiAuthController extends Controller
             return $this->success($order, $message = "Washer assigned successfully.", 200);
         }
         if (!$isCreating && $val->task == 'BILLING') {
+
+            $accepted_payment_status = [
+                'Paid',
+                'Not Paid',
+            ];
+
+            if (!in_array($val->payment_status, $accepted_payment_status)) {
+                return $this->error('Invalid payment status.');
+            }
+
             //total_amount float
             $total_amount = (float) $val->total_amount;
+            $weight = (float) $val->weight;
+
+            if ($weight < 0.1) {
+                return $this->error('Weight must be greater than 0.');
+            }
+
             if (!is_float($total_amount)) {
                 return $this->error('Total amount must be a float.');
             }
@@ -659,13 +882,27 @@ class ApiAuthController extends Controller
             $order->total_amount = $total_amount;
             $order->service_amount = $service_amount;
             $order->washing_amount = $washing_amount;
+            $order->weight = $weight;
+            $order->status = strtoupper('READY FOR PAYMENT');
+
+            $order->payment_status = $val->payment_status;
+            if ($val->payment_status == 'Paid') {
+                $order->payment_reference = $val->payment_reference;
+                $order->payment_method = $val->payment_method;
+                $order->payment_notes = $val->payment_notes;
+                $order->payment_status = 'Paid';
+                $order->payment_date = Carbon::now();
+                $order->status = strtoupper('PENDING');
+            }
+
             try {
                 $order->save();
                 $order = LaundryOrder::find($order->id);
             } catch (\Throwable $th) {
                 return $this->error('Failed to update order because ' . $th->getMessage());
             }
-            return $this->success($order, $message = "Billing updated successfully.", 200);
+
+            return $this->success($order, $message = "Billing updated successfully. #" . $order->id, 200);
         }
 
         if (!$isCreating && $val->task == 'PICKUP') {
@@ -701,115 +938,6 @@ class ApiAuthController extends Controller
         if (!$isCreating) {
             return $this->error('Invalid task #' . $val->task);
         }
-
-
-
-
-        if ($isCreating) {
-            $order->user_id = $u->id;
-            $order->customer_name = $val->customer_name;
-            $order->customer_phone = $val->customer_phone;
-            $order->customer_address = $val->customer_address;
-            $order->pickup_address = $val->pickup_address;
-            $order->pickup_gps = $val->pickup_gps;
-            $order->delivery_address = $val->delivery_address;
-            $order->special_instructions = $val->special_instructions;
-            $order->total_amount = $val->total_amount;
-            $order->payment_status = $val->payment_status;
-            $order->payment_method = $val->payment_method;
-            $order->payment_date = $val->payment_date;
-            $order->stripe_payment_link = $val->stripe_payment_link;
-            $order->payment_reference = $val->payment_reference;
-            $order->payment_notes = $val->payment_notes;
-            $order->customer_photos = $val->customer_photos;
-            $order->scheduled_pickup_time = $val->scheduled_pickup_time;
-            $order->assigned_driver_id = $val->assigned_driver_id;
-            $order->driver_id = $val->driver_id;
-            $order->actual_pickup_time = $val->actual_pickup_time;
-            $order->pickup_notes = $val->pickup_notes;
-            $order->laundry_delivery_time = $val->laundry_delivery_time;
-            $order->washer_assignment_time = $val->washer_assignment_time;
-            $order->assigned_washer_id = $val->assigned_washer_id;
-            $order->washer_id = $val->washer_id;
-            $order->washing_start_time = $val->washing_start_time;
-            $order->washing_end_time = $val->washing_end_time;
-            $order->drying_start_time = $val->drying_start_time;
-            $order->drying_end_time = $val->drying_end_time;
-            $order->scheduled_delivery_time = $val->scheduled_delivery_time;
-            $order->delivery_driver_id = $val->delivery_driver_id;
-            $order->actual_delivery_time = $val->actual_delivery_time;
-            $order->delivery_notes = $val->delivery_notes;
-            $order->final_payment_date = $val->final_payment_date;
-            $order->receipt_approved_date = $val->receipt_approved_date;
-            $order->rating = $val->rating;
-            $order->driver_amount = $val->driver_amount;
-            $order->driving_distance = $val->driving_distance;
-            $order->feedback = $val->feedback;
-            $order->local_id = $val->local_id;
-        } else {
-            $order->customer_name = $val->customer_name;
-            $order->customer_phone = $val->customer_phone;
-            $order->customer_address = $val->customer_address;
-            $order->pickup_address = $val->pickup_address;
-            $order->pickup_gps = $val->pickup_gps;
-            $order->delivery_address = $val->delivery_address;
-            $order->special_instructions = $val->special_instructions;
-            $order->total_amount = $val->total_amount;
-            $order->payment_status = $val->payment_status;
-            $order->payment_method = $val->payment_method;
-            $order->payment_date = $val->payment_date;
-            $order->stripe_payment_link = $val->stripe_payment_link;
-            $order->payment_reference = $val->payment_reference;
-            $order->payment_notes = $val->payment_notes;
-            $order->customer_photos = $val->customer_photos;
-            $order->scheduled_pickup_time = $val->scheduled_pickup_time;
-            $order->assigned_driver_id = $val->assigned_driver_id;
-            $order->driver_id = $val->driver_id;
-            $order->actual_pickup_time = $val->actual_pickup_time;
-            $order->pickup_notes = $val->pickup_notes;
-            $order->laundry_delivery_time = $val->laundry_delivery_time;
-            $order->washer_assignment_time = $val->washer_assignment_time;
-            $order->assigned_washer_id = $val->assigned_washer_id;
-            $order->washer_id = $val->washer_id;
-            $order->washing_start_time = $val->washing_start_time;
-            $order->washing_end_time = $val->washing_end_time;
-            $order->drying_start_time = $val->drying_start_time;
-            $order->drying_end_time = $val->drying_end_time;
-            $order->scheduled_delivery_time = $val->scheduled_delivery_time;
-            $order->delivery_driver_id = $val->delivery_driver_id;
-            $order->actual_delivery_time = $val->actual_delivery_time;
-            $order->delivery_notes = $val->delivery_notes;
-            $order->final_payment_date = $val->final_payment_date;
-            $order->receipt_approved_date = $val->receipt_approved_date;
-            $order->rating = $val->rating;
-            $order->driver_amount = $val->driver_amount;
-            $order->driving_distance = $val->driving_distance;
-            $order->feedback = $val->feedback;
-            $order->local_id = $val->local_id;
-            $order->status = $val->status;
-        }
-
-        try {
-            $order->save();
-        } catch (\Throwable $th) {
-            return $this->error($th->getMessage());
-        }
-        $order = LaundryOrder::find($order->id);
-
-
-        $message = "Order created successfully.";
-        if ($isCreating) {
-            $message = "Order created successfully.";
-        } else {
-            $message = "Order updated successfully.";
-        }
-
-        return Utils::response([
-            'status' => 1,
-            'data' => $order,
-            'code' => 1,
-            'message' => $message,
-        ]);
     }
 
 
