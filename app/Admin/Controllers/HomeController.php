@@ -32,6 +32,8 @@ class HomeController extends Controller
         $content
             ->title('<b>' . Utils::greet() . " " . $u->last_name . '!</b>');
 
+        return $content;
+
         $content->row(function (Row $row) {
             $row->column(6, function (Column $column) {
                 $u = Admin::user();
@@ -98,5 +100,4 @@ class HomeController extends Controller
 
         return $content;
     }
- 
 }
