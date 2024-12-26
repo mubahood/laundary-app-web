@@ -24,6 +24,7 @@ Route::get('users/me', [ApiAuthController::class, 'me']);
 Route::get('users', [ApiAuthController::class, 'users']);
 Route::get('laundry-orders', [ApiAuthController::class, 'laundry_orders']);
 Route::get('my-roles', [ApiAuthController::class, 'my_roles']);
+Route::get('trips', [ApiAuthController::class, 'trips']);
 
 
 Route::get('tasks', [ApiAuthController::class, 'tasks']);

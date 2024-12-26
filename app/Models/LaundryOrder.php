@@ -263,4 +263,18 @@ local_id
         }
         return $status;
     } */
+
+    //getter for customer_photos
+    public function getCustomerPhotosAttribute($value)
+    {
+        $images = Image::where('product_id', $this->local_id)->get();
+        $items = [];
+        foreach ($images as $key => $value) {
+            $val['id'] = $value->id;
+            $val['src'] = $value->src;
+            $val['type'] = $value->type;
+            $items[] = $val;
+        }
+        return json_encode($items);
+    }
 }

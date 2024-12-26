@@ -127,6 +127,9 @@ class ApiAuthController extends Controller
             $orders = LaundryOrder::where([
                 'driver_id' => $u->id
             ])
+                ->orWhere([
+                    'delivery_driver_id' => $u->id
+                ])
                 ->get();
         }
 
@@ -141,6 +144,41 @@ class ApiAuthController extends Controller
 
         return $this->success($orders, $message = "Success", 200);
     }
+
+
+
+
+    public function trips()
+    {
+        $u = auth('api')->user();
+        if ($u == null) {
+            return $this->error('Account not found');
+        }
+
+        $orders = [];
+        //admin
+        //customer
+        //driver
+        //washer
+
+        //if driver
+        if ($u->isRole('driver')) {
+            $orders = Trip::where([
+                'driver_id' => $u->id
+            ])
+                ->get();
+        }
+
+        //if admin
+        if ($u->isRole('admin')) {
+            $orders = Trip::where([])
+                ->get();
+        }
+
+        return $this->success($orders, $message = "Success", 200);
+    }
+
+
 
     public function projects()
     {
@@ -289,48 +327,46 @@ class ApiAuthController extends Controller
             return $this->error('Password is required.');
         }
 
-        $r->username = trim($r->username);
-
-        $u = User::where('phone_number_1', $r->username)
-            ->orWhere('username', $r->username)
-            ->orWhere('id', $r->username)
-            ->orWhere('email', $r->username)
-            ->first();
-
-
-        if ($u == null) {
-            $phone_number = Utils::prepare_phone_number($r->username);
-            if (Utils::phone_number_is_valid($phone_number)) {
-                $phone_number = $r->phone_number_1;
-                $u = User::where('phone_number_1', $phone_number)
-                    ->orWhere('username', $phone_number)
-                    ->orWhere('email', $phone_number)
-                    ->first();
-            }
+        $password = trim($r->password);
+        if (strlen($password) < 3) {
+            return $this->error('Password is invalid.');
         }
 
+        $username = $r->username;
+        if ($username == null) {
+            return $this->error('Username is required.');
+        }
+        $username = trim($r->username);
+        //check if username is less than 3
+        if (strlen($username) < 3) {
+            return $this->error('Username is invalid.');
+        }
+
+        $u = User::where('phone_number_1', $username)->first();
+        if ($u == null) {
+            $u = User::where('username', $username)->first();
+        }
+        if ($u == null) {
+            $u = User::where('email', $username)->first();
+        }
         if ($u == null) {
             return $this->error('User account not found.');
         }
+
         if ($u->status == 3) {
             return $this->error('Account is deleted.');
         }
-
-
 
         JWTAuth::factory()->setTTL(60 * 24 * 30 * 365);
 
         $token = auth('api')->attempt([
             'id' => $u->id,
-            'password' => trim($r->password),
+            'password' => trim($password),
         ]);
-
 
         if ($token == null) {
             return $this->error('Wrong credentials.');
         }
-
-
 
         $u->token = $token;
         $u->remember_token = $token;
@@ -365,6 +401,14 @@ class ApiAuthController extends Controller
             return $this->error('Name is required.');
         }
 
+        $email = trim($r->email);
+        if ($email != null) {
+            $email = trim($email);
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $this->error('Invalid email address.');
+            }
+        }
+
 
 
         $u = Administrator::where('phone_number_1', $phone_number)
@@ -396,9 +440,28 @@ class ApiAuthController extends Controller
             $user->first_name = $name;
         }
 
+        //user with same email
+        $u = Administrator::where('email', $email)->first();
+        if ($u != null) {
+            return $this->error('User with same email already exists.');
+        }
+
+        // same username
+        $u = Administrator::where('username', $phone_number)->first();
+        if ($u != null) {
+            return $this->error('User with same phone number already exists.');
+        }
+
+        //same user name as email
+        $u = Administrator::where('username', $email)->first();
+        if ($u != null) {
+            return $this->error('User with same email already exists.');
+        }
+
+
         $user->phone_number_1 = $phone_number;
         $user->username = $phone_number;
-        $user->email = $r->email;
+        $user->email = $email;
         $user->name = $name;
         $user->password = password_hash(trim($r->password), PASSWORD_DEFAULT);
         if (!$user->save()) {
@@ -412,9 +475,17 @@ class ApiAuthController extends Controller
         Config::set('jwt.ttl', 60 * 24 * 30 * 365);
 
         $token = auth('api')->attempt([
-            'username' => $phone_number,
+            'id' => $new_user->id,
             'password' => trim($r->password),
         ]);
+
+        if ($token == null) {
+            return $this->error('Account created successfully but failed to log you in.');
+        }
+
+        if (!$token) {
+            return $this->error('Account created successfully but failed to log you in..');
+        }
 
         $new_user->token = $token;
         $new_user->remember_token = $token;
@@ -478,6 +549,7 @@ class ApiAuthController extends Controller
                 'message' => "User not found.",
             ]);
         }
+
         if ($val->is_creating == 'YES') {
             $trip = new Trip();
             $trip->driver_id = $u->id;
@@ -513,7 +585,7 @@ class ApiAuthController extends Controller
                         'code' => 0,
                         'message' => "Failed to find create trip.",
                     ]);
-                } 
+                }
             } catch (\Throwable $th) {
                 return $this->error('Failed to create trip because ' . $th->getMessage());
             }
@@ -525,6 +597,7 @@ class ApiAuthController extends Controller
             ]);
         } else if ($val->is_creating == 'NO') {
             $trip = Trip::find($val->id);
+
             if ($trip == null) {
                 return Utils::response([
                     'status' => 0,
@@ -532,6 +605,30 @@ class ApiAuthController extends Controller
                     'message' => "Trip not found.",
                 ]);
             }
+            $trip->status = $val->status;
+            $trip->type = $val->type;
+            $trip->start_location = ($val->start_location == null) ? $trip->start_location : $val->start_location;
+            $trip->end_location = ($val->end_location == null) ? $trip->end_location : $val->end_location;
+            $trip->end_time = ($val->end_time == null) ? Carbon::now() : $val->end_time;
+            $trip->distance = $val->distance;
+            $trip->amount = $val->amount;
+            $trip->payment_status = ($val->payment_status == null) ? $trip->payment_status : $val->payment_status;
+            $trip->payment_method = ($val->payment_method == null) ? $trip->payment_method : $val->payment_method;
+            $trip->payment_date = ($val->payment_date == null) ? $trip->payment_date : $val->payment_date;
+            $trip->notes = ($val->notes == null) ? $trip->notes : $val->notes;
+
+            try {
+                $trip->save();
+            } catch (\Throwable $th) {
+                return $this->error('Failed to update trip because ' . $th->getMessage());
+            } 
+            $trip = Trip::find($trip->id);
+            return Utils::response([
+                'status' => 1,
+                'data' => $trip,
+                'code' => 1,
+                'message' => 'Trip updated successfully.',
+            ]);
         } else {
             return Utils::response([
                 'status' => 0,
@@ -688,10 +785,12 @@ class ApiAuthController extends Controller
             return $this->success($order, $message = "Order completed successfully.", 200);
         }
         if (!$isCreating && $val->task == 'DELIVERED') {
-            if ($order->delivery_notes != trim($val->delivery_notes)) {
-                return $this->error('Invalid delivery CODE.');
+            if (strlen(trim($val->delivery_notes)) < 1) {
+                return $this->error('Invalid delivery CODE. #' . $val->delivery_notes);
             }
             $order->status = strtoupper('DELIVERED');
+            $order->delivery_notes = $val->delivery_notes;
+            $order->delivery_driver_id = $u->id;
             try {
                 $order->save();
                 $order = LaundryOrder::find($order->id);
@@ -926,6 +1025,8 @@ class ApiAuthController extends Controller
 
         if (!$isCreating && $val->task == strtoupper('Picked Up')) {
             $order->status = strtoupper('Picked Up');
+            $order->pickup_notes = $val->pickup_notes;
+            $order->delivery_driver_id = $u->id;
             try {
                 $order->save();
                 $order = LaundryOrder::find($order->id);
@@ -1632,6 +1733,19 @@ class ApiAuthController extends Controller
             ]);
         }
 
+        //check for type
+        if (
+            !isset($request->type) ||
+            $request->type == null ||
+            (strlen(($request->type))) < 3
+        ) {
+            return Utils::response([
+                'status' => 0,
+                'code' => 0,
+                'message' => "Type is missing.",
+            ]);
+        }
+
         $administrator_id = $u->id;
         if (
             !isset($request->parent_id) ||
@@ -1712,7 +1826,9 @@ class ApiAuthController extends Controller
             $img->src =  $src;
             $img->thumbnail =  null;
             $img->parent_endpoint =  $request->parent_endpoint;
-            $img->parent_id =  (int)($request->parent_id);
+            $img->type =  $request->type;
+            $img->product_id =  $request->product_id;
+            $img->parent_id =  $request->parent_id;
             $img->size = 0;
             $img->note = '';
             if (
