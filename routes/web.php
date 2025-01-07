@@ -22,14 +22,69 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 
+Route::get('mail-test', function () {
+
+    /* 
+    $orderStages = [
+        "PICKED UP",
+        "READY FOR PAYMENT",
+        "AWAITING WASHING",
+        "WASHING IN PROGRESS",
+        "READY FOR DELIVERY",
+        "OUT FOR DELIVERY",
+        "DELIVERED",
+        "CANCELLED",
+        "COMPLETED"
+    ];
+    */
+
+    $order = LaundryOrder::find(1);
+    $order->customer_name .= '1';
+    $order->status = 'READY FOR PAYMENT';
+    $order->driver_amount =  '10';
+    $order->driving_distance =  '10';
+    $order->washing_amount =  '10';
+    $order->service_amount =  '10';
+    $order->weight =  '10';
+
+  
+    $order->save();
+    die("done"); 
+
+    $url = url('mail-test');
+    $from = env('APP_NAME') . " Team.";
+    $email_address = 'mubahood360@gmail.com';
+    $name = 'Muhindo Mubaraka';
+
+    $mail_body =
+        <<<EOD
+        <p>Dear <b>Muhindo Mubaraka</b>,</p>
+        <p>Please use the code below to reset your password.</p><p style="font-size: 25px; font-weight: bold; text-align: center; color:rgb(7, 76, 194); "><b>$name</b></p>
+        <p>Or clink on the link below to reset your password.</p>
+        <p><a href="#">Reset Password</a></p>
+        <p>Best regards,</p>
+        <p>{$from}</p>
+        EOD;
+    try {
+        $day = date('Y-m-d');
+        $data['body'] = $mail_body;
+        $data['data'] = $data['body'];
+        $data['name'] = $name;
+        $data['email'] = $email_address;
+        $data['subject'] = 'Password Reset - ' . env('APP_NAME') . ' - ' . $day . ".";
+        Utils::mail_sender($data);
+    } catch (\Throwable $th) {
+        throw $th;
+    }
+});
 Route::get('test-order', function () {
-    
+
     $latestOrder = LaundryOrder::latest()->first();
     //if 
     if ($latestOrder == null) {
         throw new \Exception('No order found');
     }
-    if(strtolower($latestOrder->payment_status) == 'paid'){
+    if (strtolower($latestOrder->payment_status) == 'paid') {
         return 'Order already paid';
     }
     try {

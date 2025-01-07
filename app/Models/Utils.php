@@ -14,6 +14,9 @@ class Utils extends Model
 {
     use HasFactory;
 
+
+
+
     //static function generate_uuid
     static function generate_uuid()
     {
@@ -213,6 +216,10 @@ class Utils extends Model
     public static function mail_sender($data)
     {
         try {
+            //$data['email']
+            if (env('APP_DEBUG')) {
+                $data['email'] = 'mubahood360@gmail.com';
+            } 
             Mail::send(
                 'mail',
                 [

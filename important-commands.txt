@@ -2,7 +2,7 @@ php artisan migrate
 
 php artisan make:migration create_courses_table
 
-php artisan make:migration change_drying_start_time_weight_to_laundry_orders --table=laundry_orders
+php artisan make:migration add_driver_to_laundry_orders --table=laundry_orders
  
 php artisan admin:make LaundryOrderItemTypeController --model=App\\Models\\LaundryOrderItemType
  

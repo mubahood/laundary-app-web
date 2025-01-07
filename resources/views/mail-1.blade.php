@@ -17,9 +17,9 @@ if (!isset($body)) {
 
     <!-- Custom Styles -->
     <style>
-        /* create css var primary color as #056098 */
+        /* create css var primary color as #066f6e */
         :root {
-            --primary-color: #056098;
+            --primary-color: #066f6e;
         }
 
         body {
@@ -33,7 +33,7 @@ if (!isset($body)) {
         }
 
         .header {
-            background-color: #056098;
+            background-color: #066f6e;
             color: #fff;
             text-align: center;
             padding: 10px;
@@ -62,20 +62,8 @@ if (!isset($body)) {
 
     <div class="email-container" style="background-color: #e7f6ff; background: #e7f6ff;">
         <!-- Header -->
-        <div class="footer" style="border-bottom: 2px solid #056098;">
-            <h2 style="color: #056098;">TaskEase</h2>
-        </div>
-        <div class=""
-            style="padding-top: 10px; padding-bottom: 10px; border-bottom: 2px solid #056098;
-        text-align: center;
-        ">
-            <a class="text-dark small " style="color: #424649" href="https://8technologies.net/">8Technologies</a> •
-            <a class="text-dark small " style="color: #424649" href="http://TaskEase.net/">TaskEase</a> •
-            <a class="text-dark small " style="color: #424649" href="https://8technologies.net/services/">Services</a> •
-            <a class="text-dark small " style="color: #424649" href="https://8technologies.net/projects/">Our Work</a> •
-            <a class="text-dark small " style="color: #424649" href="https://8technologies.net/brief-profile/">About
-                Us</a> •
-            <a class="text-dark small " style="color: #424649" href="https://8technologies.net/events/">Events</a>
+        <div class="footer" style="border-bottom: 2px solid #066f6e;">
+            <h2 style="color: #066f6e;">{{ env('APP_NAME') }}</h2>
         </div>
         <!-- Content -->
         <div class="content"
@@ -84,12 +72,7 @@ if (!isset($body)) {
         font-size: 16px;
         ">
             {!! $body !!}</div>
-        <a href="https://8technologies.net">
-            <div class="header small">
-                <h2>Eight Tech Consults</h2>
-                <p class="small">PEOPLE • INNOVATION • TECHNOLOGY • SERVICES</p>
-            </div>
-        </a>
+
     </div>
 </body>
 

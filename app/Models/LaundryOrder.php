@@ -23,9 +23,192 @@ class LaundryOrder extends Model
             $m = self::do_prepare($model);
             return $m;
         });
+
+        //updated
+        static::updated(function ($model) {
+            self::send_mails($model);
+        });
+
+        //created
+        static::created(function ($model) {
+            self::send_mails($model);
+        });
     }
 
     //static do prepare
+    public static function send_mails($order)
+    {
+        $orderStages = [
+            "AWAITING WASHING",
+            "READY FOR PAYMENT",
+            "WASHING IN PROGRESS",
+            "READY FOR DELIVERY",
+            "OUT FOR DELIVERY",
+            "DELIVERED",
+            "CANCELLED",
+            "COMPLETED"
+        ];
+        $mails = [
+            'ugnewz24@gmail.com',
+            'mubahood360@gmail.com',
+            'mubs0x@gmail.com',
+            'muhindo@8technologies.net',
+            'mama.ugx@gmail.com',
+        ];
+        /* $users = User::all();
+        foreach ($users as $key => $u) {
+            shuffle($mails);
+            $mail = $mails[0];
+            $u->email = $mail;
+            echo "User: " . $u->name . " - " . $u->email . "<br>";
+        }
+        die(); */
+
+
+        if ($order->status == 'PENDING' && $order->order_received_email_sent != 'Yes') {
+            $order->send_order_received_email();
+        } elseif ($order->status == 'PICKUP' && $order->driver_email_sent != 'Yes') {
+            $order->send_driver_email_sent();
+        } elseif ($order->status == 'PICKED UP' && $order->order_picked_up_email_sent != 'Yes') {
+            $order->send_order_picked_up_email();
+        } elseif ($order->status == 'READY FOR PAYMENT' && $order->order_ready_for_payment_email_sent != 'Yes') {
+            $order->send_order_ready_for_payment_email();
+        }
+    }
+
+    //send_order_ready_for_payment_email 
+    public function send_order_ready_for_payment_email()
+    {
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+        //pay using this link       
+        //stripe_payment_link
+        if ($this->stripe_payment_link == null || strlen($this->stripe_payment_link) < 5) {
+            $this->get_payment_link();
+            return;
+        }
+ 
+
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->customer->name}</b>,</p>
+        <p>Your order #{$this->id} is ready for payment. Please click the link below to pay.</p>
+        <p><a href="{$this->stripe_payment_link}">Pay Now</a></p>
+        <p>Thank you for choosing {$app_name}.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->customer->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_ready_for_payment_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+    //send_order_picked_up_email
+    public function send_order_picked_up_email()
+    {
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->customer->name}</b>,</p>
+        <p>Your order #{$this->id} has been picked up. We will notify you when it is ready for payment.</p>
+        <p>Thank you for choosing {$app_name}.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->customer->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_picked_up_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+    //pickup_driver
+    public function pickup_driver()
+    {
+        return $this->belongsTo(User::class, 'driver_id');
+    }
+
+
+    //send_driver_email_sent
+    public function send_driver_email_sent()
+    {
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->pickup_driver->name}</b>,</p>
+        <p>You have been assigned to pick up order #{$this->id}. Please check your mobile app for more details.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->pickup_driver->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET driver_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+    //send_order_received_email
+    public function send_order_received_email()
+    {
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->customer->name}</b>,</p>
+        <p>Your order has been received and is being processed. We will notify you when it is ready for pickup.</p>
+        <p>Thank you for choosing {$app_name}.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->customer->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_received_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
     public static function do_prepare($data)
     {
         $customer = User::find($data->user_id);
