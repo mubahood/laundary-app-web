@@ -354,7 +354,6 @@ class ApiAuthController extends Controller
         }
 
         if ($u->status == 3) {
-            // return $this->error('Account is deleted.');
         }
 
         JWTAuth::factory()->setTTL(60 * 24 * 30 * 365);
