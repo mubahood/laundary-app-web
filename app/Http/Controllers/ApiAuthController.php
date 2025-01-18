@@ -354,7 +354,7 @@ class ApiAuthController extends Controller
         }
 
         if ($u->status == 3) {
-            return $this->error('Account is deleted.');
+            // return $this->error('Account is deleted.');
         }
 
         JWTAuth::factory()->setTTL(60 * 24 * 30 * 365);
@@ -621,7 +621,7 @@ class ApiAuthController extends Controller
                 $trip->save();
             } catch (\Throwable $th) {
                 return $this->error('Failed to update trip because ' . $th->getMessage());
-            } 
+            }
             $trip = Trip::find($trip->id);
             return Utils::response([
                 'status' => 1,
@@ -654,6 +654,7 @@ class ApiAuthController extends Controller
                 'message' => "User not found.",
             ]);
         }
+
 
         //validate for local_id
         if ($val->local_id == null) {
@@ -1724,6 +1725,7 @@ class ApiAuthController extends Controller
 
     public function upload_media(Request $request)
     {
+
         $u = auth('api')->user();
         if ($u == null) {
             return Utils::response([
@@ -1749,13 +1751,12 @@ class ApiAuthController extends Controller
         $administrator_id = $u->id;
         if (
             !isset($request->parent_id) ||
-            $request->parent_id == null ||
-            ((int)($request->parent_id)) < 1
+            $request->parent_id == null
         ) {
             return Utils::response([
                 'status' => 0,
                 'code' => 0,
-                'message' => "Local parent ID is missing.",
+                'message' => "Local parent ID is missing. 1",
             ]);
         }
 

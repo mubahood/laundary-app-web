@@ -50,7 +50,7 @@ Route::POST("get-order-payment-link", [ApiAuthController::class, 'get_order_paym
 Route::POST("meetings", [ApiAuthController::class, 'meetings_create']);
 Route::POST("tasks-update-status", [ApiAuthController::class, 'tasks_update_status']);
 Route::POST("users/login", [ApiAuthController::class, "login"]);
-Route::POST("users/register", [ApiAuthController::class, "register"]);
+Route::POST("users/register", [ApiAuthController::class, "register"]); 
 
 Route::get('api/{model}', [ApiResurceController::class, 'index']);
 Route::post('api/{model}', [ApiResurceController::class, 'update']);
