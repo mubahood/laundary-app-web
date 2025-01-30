@@ -103,11 +103,6 @@ class ApiAuthController extends Controller
         }
 
         $orders = [];
-        //admin
-        //customer
-        //driver
-        //washer
-
         //if admin
         if ($u->isRole('admin')) {
             $orders = LaundryOrder::where([])
