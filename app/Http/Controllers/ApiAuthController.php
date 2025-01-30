@@ -112,18 +112,7 @@ class ApiAuthController extends Controller
         if ($u->isRole('admin')) {
             $orders = LaundryOrder::where([])
                 ->get();
-        }
-
-        //if customer
-        if ($u->isRole('customer')) {
-            $orders = LaundryOrder::where([
-                'user_id' => $u->id
-            ])
-                ->get();
-        }
-
-        //if driver
-        if ($u->isRole('driver')) {
+        } else  if ($u->isRole('driver')) {
             $orders = LaundryOrder::where([
                 'driver_id' => $u->id
             ])
@@ -131,15 +120,20 @@ class ApiAuthController extends Controller
                     'delivery_driver_id' => $u->id
                 ])
                 ->get();
-        }
-
-        //if washer
-        if ($u->isRole('washer')) {
+        } else if ($u->isRole('washer')) {
             $orders[] = LaundryOrder::where([
                 'washer_id' => $u->id
             ])
                 ->get();
+        } else {
+            $orders = LaundryOrder::where([
+                'user_id' => $u->id
+            ])
+                ->get();
         }
+
+
+
 
 
         return $this->success($orders, $message = "Success", 200);
