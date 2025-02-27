@@ -551,7 +551,7 @@ class ApiAuthController extends Controller
                 return Utils::response([
                     'status' => 0,
                     'code' => 0,
-                    'message' => "You already have an active trip for ({$val->type}).",
+                    'message' => "You already have an active trip for ({$val->type}). #{$existingTrip->id}", 
                 ]);
             }
             $trip->type = $val->type;
@@ -828,30 +828,30 @@ class ApiAuthController extends Controller
         if (!$isCreating && $val->task == 'ASSIGN WASHER') {
             $washer = User::find($val->washer_id);
             if ($washer == null) {
-                return $this->error('Washer not found.');
+                // return $this->error('Washer not found.');
             }
 
 
             $items_json = $val->items;
             if ($items_json == null) {
                 if ($isCreating) {
-                    return $this->error('Items are required.');
+                    // return $this->error('Items are required.');
                 }
             }
             $items = [];
             try {
                 $items = json_decode($items_json);
             } catch (\Throwable $th) {
-                return $this->error('Failed to parse items.');
+                // return $this->error('Failed to parse items.');
             }
 
             //ifnotarray
             if (!is_array($items)) {
-                return $this->error('Items must be an array.');
+                // return $this->error('Items must be an array.');
             }
 
             if (count($items) < 1) {
-                return $this->error('Items must have at least one item.');
+                // return $this->error('Items must have at least one item.');
             }
 
 
