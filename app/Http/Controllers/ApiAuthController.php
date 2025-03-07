@@ -103,27 +103,11 @@ class ApiAuthController extends Controller
         }
 
         $orders = [];
-        //admin
-        //customer
-        //driver
-        //washer
-
         //if admin
         if ($u->isRole('admin')) {
             $orders = LaundryOrder::where([])
                 ->get();
-        }
-
-        //if customer
-        if ($u->isRole('customer')) {
-            $orders = LaundryOrder::where([
-                'user_id' => $u->id
-            ])
-                ->get();
-        }
-
-        //if driver
-        if ($u->isRole('driver')) {
+        } else  if ($u->isRole('driver')) {
             $orders = LaundryOrder::where([
                 'driver_id' => $u->id
             ])
@@ -131,15 +115,20 @@ class ApiAuthController extends Controller
                     'delivery_driver_id' => $u->id
                 ])
                 ->get();
-        }
-
-        //if washer
-        if ($u->isRole('washer')) {
+        } else if ($u->isRole('washer')) {
             $orders[] = LaundryOrder::where([
                 'washer_id' => $u->id
             ])
                 ->get();
+        } else {
+            $orders = LaundryOrder::where([
+                'user_id' => $u->id
+            ])
+                ->get();
         }
+
+
+
 
 
         return $this->success($orders, $message = "Success", 200);
@@ -354,7 +343,6 @@ class ApiAuthController extends Controller
         }
 
         if ($u->status == 3) {
-            return $this->error('Account is deleted.');
         }
 
         JWTAuth::factory()->setTTL(60 * 24 * 30 * 365);
@@ -563,7 +551,7 @@ class ApiAuthController extends Controller
                 return Utils::response([
                     'status' => 0,
                     'code' => 0,
-                    'message' => "You already have an active trip for ({$val->type}).",
+                    'message' => "You already have an active trip for ({$val->type}). #{$existingTrip->id}", 
                 ]);
             }
             $trip->type = $val->type;
@@ -621,7 +609,7 @@ class ApiAuthController extends Controller
                 $trip->save();
             } catch (\Throwable $th) {
                 return $this->error('Failed to update trip because ' . $th->getMessage());
-            } 
+            }
             $trip = Trip::find($trip->id);
             return Utils::response([
                 'status' => 1,
@@ -654,6 +642,7 @@ class ApiAuthController extends Controller
                 'message' => "User not found.",
             ]);
         }
+
 
         //validate for local_id
         if ($val->local_id == null) {
@@ -839,30 +828,30 @@ class ApiAuthController extends Controller
         if (!$isCreating && $val->task == 'ASSIGN WASHER') {
             $washer = User::find($val->washer_id);
             if ($washer == null) {
-                return $this->error('Washer not found.');
+                // return $this->error('Washer not found.');
             }
 
 
             $items_json = $val->items;
             if ($items_json == null) {
                 if ($isCreating) {
-                    return $this->error('Items are required.');
+                    // return $this->error('Items are required.');
                 }
             }
             $items = [];
             try {
                 $items = json_decode($items_json);
             } catch (\Throwable $th) {
-                return $this->error('Failed to parse items.');
+                // return $this->error('Failed to parse items.');
             }
 
             //ifnotarray
             if (!is_array($items)) {
-                return $this->error('Items must be an array.');
+                // return $this->error('Items must be an array.');
             }
 
             if (count($items) < 1) {
-                return $this->error('Items must have at least one item.');
+                // return $this->error('Items must have at least one item.');
             }
 
 
@@ -1724,6 +1713,7 @@ class ApiAuthController extends Controller
 
     public function upload_media(Request $request)
     {
+
         $u = auth('api')->user();
         if ($u == null) {
             return Utils::response([
@@ -1749,13 +1739,12 @@ class ApiAuthController extends Controller
         $administrator_id = $u->id;
         if (
             !isset($request->parent_id) ||
-            $request->parent_id == null ||
-            ((int)($request->parent_id)) < 1
+            $request->parent_id == null
         ) {
             return Utils::response([
                 'status' => 0,
                 'code' => 0,
-                'message' => "Local parent ID is missing.",
+                'message' => "Local parent ID is missing. 1",
             ]);
         }
 

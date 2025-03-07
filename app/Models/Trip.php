@@ -16,7 +16,7 @@ class Trip extends Model
         parent::boot();
         static::creating(function ($model) {
             $hasExisingPickup = Trip::where('driver_id', $model->driver_id)
-                ->where('type', 'PICKUP')
+                ->where('type',  $model->type)
                 ->where('status', 'ONGOING')
                 ->count();
             if ($hasExisingPickup > 0) {
@@ -24,7 +24,7 @@ class Trip extends Model
             }
 
             $delivery = Trip::where('driver_id', $model->driver_id)
-                ->where('type', 'DELIVERY')
+                ->where('type',  $model->type)
                 ->where('status', 'ONGOING')
                 ->count();
             if ($delivery > 0) {
@@ -49,7 +49,7 @@ class Trip extends Model
     {
         if ($this->type == 'PICKUP') {
             return LaundryOrder::where('pickup_notes', $this->id)->count();
-        }else{
+        } else {
             return LaundryOrder::where('delivery_notes', $this->id)->count();
         }
     }

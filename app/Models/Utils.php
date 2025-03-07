@@ -215,11 +215,12 @@ class Utils extends Model
     //mail sender
     public static function mail_sender($data)
     {
+        return;
         try {
             //$data['email']
             if (env('APP_DEBUG')) {
                 $data['email'] = 'mubahood360@gmail.com';
-            } 
+            }
             Mail::send(
                 'mail',
                 [
