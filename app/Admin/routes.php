@@ -54,5 +54,6 @@ Route::group([
     $router->resource('flutter-wave-logs', FlutterWaveLogController::class); 
     $router->resource('doses', DoseController::class); 
     $router->resource('dose-item-records', DoseItemRecordController::class);
+    $router->resource('laundry-orders', LaundryOrderController::class);
 
 });

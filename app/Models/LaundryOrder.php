@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Dflydev\DotAccessData\Util;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -63,40 +64,97 @@ class LaundryOrder extends Model
             echo "User: " . $u->name . " - " . $u->email . "<br>";
         }
         die(); */
-
+        $order->status = strtoupper($order->status);
+        $order->status = trim($order->status);
 
         if ($order->status == 'PENDING' && $order->order_received_email_sent != 'Yes') {
             $order->send_order_received_email();
-        } elseif ($order->status == 'PICKUP' && $order->driver_email_sent != 'Yes') {
+        } elseif ($order->status == 'AWAITING PICKUP' && $order->driver_email_sent != 'Yes') {
             $order->send_driver_email_sent();
         } elseif ($order->status == 'PICKED UP' && $order->order_picked_up_email_sent != 'Yes') {
             $order->send_order_picked_up_email();
-        } elseif ($order->status == 'READY FOR PAYMENT' && $order->order_ready_for_payment_email_sent != 'Yes') {
-            $order->send_order_ready_for_payment_email();
+        } elseif ($order->status == 'READY FOR PAYMENT' || $order->status == 'BILLING') {
+            $is_paid = strtolower($order->payment_status);
+            $is_paid = trim($is_paid);
+            if ($is_paid != 'paid') {
+                $order->get_payment_link();
+                $order->send_order_ready_for_payment_email();
+            }
+        } elseif ($order->status == 'READY FOR DELIVERY') {
+            $order->send_order_ready_for_delivery_email();
+        } elseif ($order->status == 'COMPLETED' || $order->status == 'DELIVERED') {
+            if ($order->order_delivered_email_sent != 'Yes') {
+                $order->send_order_delivered_email();
+            }
+        }
+        /* 
+            "drying_start_time_weight" => null
+        "order_received_email_sent" => "Yes"
+        "order_picked_up_email_sent" => "No"
+        "order_ready_for_payment_email_sent" => "Yes"
+        "order_receipt_email_sent" => "No"
+        "order_washed_email_sent" => "No"
+        "order_delivered_email_sent" => "No"
+        "order_feedback_email_sent" => "No"
+        "driver_email_sent" => "Yes"
+            */
+    }
+
+    //send send_order_delivered_email to customer how their order has been delivered
+    public function send_order_delivered_email()
+    {
+        //IF order_delivered_email_sent
+        if ($this->order_delivered_email_sent == 'Yes') {
+            return;
+        }
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->customer->name}</b>,</p>
+        <p>Your order #{$this->id} has been delivered. Thank you for choosing {$app_name}.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->customer->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_delivered_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
         }
     }
 
     //send_order_ready_for_payment_email 
     public function send_order_ready_for_payment_email()
     {
-        $app_name = env('APP_NAME');
-        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
-        //pay using this link       
-        //stripe_payment_link
-        if ($this->stripe_payment_link == null || strlen($this->stripe_payment_link) < 5) {
-            $this->get_payment_link();
+
+        //if order_ready_for_payment_email_sent return
+        if ($this->order_ready_for_payment_email_sent == 'Yes') {
             return;
         }
- 
+
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+
 
         $body =
             <<<EOD
         <p>Dear <b>{$this->customer->name}</b>,</p>
-        <p>Your order #{$this->id} is ready for payment. Please click the link below to pay.</p>
-        <p><a href="{$this->stripe_payment_link}">Pay Now</a></p>
-        <p>Thank you for choosing {$app_name}.</p>
+        <p>We are pleased to inform you that your order #000{$this->id} is now ready for payment. To complete your payment securely, please click the link below:</p>
+        <p><a href="{$this->stripe_payment_link}" style="color: #007bff; text-decoration: none; font-weight: bold;">Pay Now</a></p>
+        <p>If you have any questions or need assistance, feel free to contact our support team.</p>
+        <p>Thank you for choosing <b>{$app_name}</b>. We appreciate your trust in our services.</p>
         <p>Best regards,</p>
-        <p>{$app_name} Team.</p>
+        <p><b>{$app_name} Team</b></p>
         EOD;
 
         $data = [
@@ -113,6 +171,65 @@ class LaundryOrder extends Model
             throw $th;
         }
     }
+
+    //send_order_ready_for_delivery_email send to delivery driver
+    public function send_order_ready_for_delivery_email()
+    {
+        //order_delivered_email_sent
+        if ($this->order_washed_email_sent == 'Yes') {
+            return;
+        }
+        $app_name = env('APP_NAME');
+        $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
+
+        if ($this->delivery_driver == null) {
+            throw new \Exception("Delivery driver not found", 1);
+        }
+        //send mail to driver for delivery
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->delivery_driver->name}</b>,</p>
+        <p>You have been assigned to deliver order #{$this->id}. Please check your mobile app for more details.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->delivery_driver->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_washed_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+        //send mail to customer
+        $body =
+            <<<EOD
+        <p>Dear <b>{$this->customer->name}</b>,</p>
+        <p>Your order #{$this->id} is now ready for delivery. Please check your mobile app for more details.</p>
+        <p>Best regards,</p>
+        <p>{$app_name} Team.</p>
+        EOD;
+        $data = [
+            'subject' => $subject,
+            'body' => $body,
+            'email' => $this->customer->email,
+            'name' => $app_name,
+        ];
+        try {
+            Utils::mail_sender($data);
+            $sql = "UPDATE laundry_orders SET order_ready_for_payment_email_sent = 'Yes' WHERE id = " . $this->id;
+            DB::update($sql);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+
 
     //send_order_picked_up_email
     public function send_order_picked_up_email()
@@ -150,10 +267,28 @@ class LaundryOrder extends Model
         return $this->belongsTo(User::class, 'driver_id');
     }
 
+    //delivery_driver
+    public function delivery_driver()
+    {
+        return $this->belongsTo(User::class, 'delivery_driver_id');
+    }
+
 
     //send_driver_email_sent
     public function send_driver_email_sent()
     {
+        $oreder = LaundryOrder::find($this->id);
+        if ($oreder == null) {
+            throw new \Exception("Order not found", 1);
+        }
+        //check if driver_email_sent
+        if ($oreder->driver_email_sent == 'Yes') {
+            return;
+        }
+        //check status
+        if ($oreder->status != 'AWAITING PICKUP') {
+            return;
+        }
         $app_name = env('APP_NAME');
         $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
 
@@ -183,6 +318,15 @@ class LaundryOrder extends Model
     //send_order_received_email
     public function send_order_received_email()
     {
+        $order = LaundryOrder::find($this->id);
+        if ($order == null) {
+            throw new \Exception("Order not found", 1);
+        }
+        //check if order_received_email_sent
+        if ($order->order_received_email_sent == 'Yes') {
+            return;
+        }
+
         $app_name = env('APP_NAME');
         $subject = $app_name . ' - ORDER #' . $this->id . " Updates.";
         $body =
@@ -201,12 +345,41 @@ class LaundryOrder extends Model
             'name' => $app_name,
         ];
         try {
+            //to customer
             Utils::mail_sender($data);
-            $sql = "UPDATE laundry_orders SET order_received_email_sent = 'Yes' WHERE id = " . $this->id;
-            DB::update($sql);
         } catch (\Throwable $th) {
             throw $th;
         }
+
+        //to admin
+        $subject = $app_name . ' - New Order #' . $this->id . " Received.";
+        $review_url = admin_url('laundry-orders/' . $this->id . '/edit');
+        $body =
+            <<<EOD
+        <p>Dear Admin,</p>
+        <p>A new order #{$this->id} has been received. Please click the link below to review the order.</p>
+        <p><a href="{$review_url}">Review Order</a></p>
+        <p>Best regards,</p>
+        <p>{$app_name} System.</p>
+        EOD;
+
+        $admin_mails = Utils::get_admin_emails();
+        try {
+            foreach ($admin_mails as $key => $email) {
+                $data = [
+                    'subject' => $subject,
+                    'body' => $body,
+                    'email' => $email,
+                    'name' => $app_name,
+                ];
+                Utils::mail_sender($data);
+            }
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+
+        $sql = "UPDATE laundry_orders SET order_received_email_sent = 'Yes' WHERE id = " . $this->id;
+        DB::update($sql);
     }
 
     public static function do_prepare($data)
@@ -238,6 +411,17 @@ class LaundryOrder extends Model
             $data->delivery_address = $data->pickup_address;
         }
         $data->status = strtoupper($data->status);
+
+        if ($data->status == 'BILLING' || $data->status == 'READY FOR PAYMENT') {
+            $data->status = 'READY FOR PAYMENT';
+        }
+
+        if ($data->status == 'READY FOR PAYMENT') {
+            $service_amount = (float) $data->service_amount;
+            $washing_amount = (float) $data->washing_amount;
+            $data->total_amount = $service_amount + $washing_amount;
+        }
+
         return $data;
     }
 
@@ -424,7 +608,7 @@ local_id
         $accepted_tasks = [
             'BILLING',
             'READY FOR PAYMENT',
-            'PICKUP',
+            'AWAITING PICKUP',
             strtoupper('Picked Up'),
             strtoupper('Washing in Progress'),
             'ASSIGN WASHER',

@@ -22,6 +22,80 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 
+Route::get('test-orders', function () {
+
+    $lastOder = LaundryOrder::latest()->first();
+    LaundryOrder::send_mails($lastOder); 
+    die('done');
+    
+    dd($lastOder->total_amount);
+    $lastOder = LaundryOrder::do_prepare($lastOder); 
+    $lastOder->send_order_received_email();
+    dd('done'); 
+    LaundryOrder::send_mails($lastOder); 
+    /* 
+    send_mails
+        "id" => 8
+    "created_at" => "2025-02-27 07:16:46"
+    "updated_at" => "2025-02-27 09:11:15"
+    "user_id" => 68
+    "customer_name" => "Muhind John"
+    "customer_phone" => "+256783204611"
+    "customer_address" => null
+    "pickup_address" => "test address go here"
+    "pickup_gps" => "null,null"
+    "delivery_address" => "test address go here"
+    "special_instructions" => "SOME INSTRUCTIONS"
+    "total_amount" => "12.00"
+    "payment_status" => "Not Paid"
+    "payment_method" => null
+    "payment_date" => null
+    "stripe_payment_link" => "https://buy.stripe.com/28o9BB3bx1LGaE8eWd"
+    "payment_reference" => "plink_1Qx2XTD6XvmPLQKHri47pI5G"
+    "payment_notes" => null
+    "customer_photos" => null
+    "scheduled_pickup_time" => null
+    "assigned_driver_id" => null
+    "driver_id" => 2
+    "actual_pickup_time" => "2025-02-27 00:00:00"
+    "pickup_notes" => "3"
+    "laundry_delivery_time" => null
+    "washer_assignment_time" => null
+    "assigned_washer_id" => null
+    "washer_id" => 2
+    "washing_start_time" => null
+    "washing_end_time" => null
+    "drying_start_time" => "11:00AM-11:30AM"
+    "drying_end_time" => null
+    "scheduled_delivery_time" => null
+    "delivery_driver_id" => 2
+    "actual_delivery_time" => null
+    "delivery_notes" => "2"
+    "final_payment_date" => null
+    "receipt_approved_date" => null
+    "rating" => null
+    "driver_amount" => null
+    "driving_distance" => null
+    "feedback" => "CM1928"
+    "local_id" => "137232-35967-250180-392563-803668-339719-373070-909306-858981-839344-3420"
+    "status" => "DELIVERED"
+    "washing_amount" => "11.00"
+    "service_amount" => "1.00"
+    "weight" => "12.00"
+    "drying_start_time_weight" => null
+    "order_received_email_sent" => "Yes"
+    "order_picked_up_email_sent" => "Yes"
+    "order_ready_for_payment_email_sent" => "Yes"
+    "order_receipt_email_sent" => "No"
+    "order_washed_email_sent" => "No"
+    "order_delivered_email_sent" => "No"
+    "order_feedback_email_sent" => "No"
+    "driver_email_sent" => "No"
+    */
+
+    return "Cleared!";
+});
+
 Route::get('/clear', function () {
 
     Artisan::call('cache:clear');

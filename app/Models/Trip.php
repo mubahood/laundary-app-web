@@ -15,6 +15,12 @@ class Trip extends Model
     {
         parent::boot();
         static::creating(function ($model) {
+
+            //IF TYPE IS AWAITING FOR PICKUP, CHANGE IT TO PICKUP
+            if ($model->type == 'AWAITING FOR PICKUP') {
+                $model->type = 'PICKUP';
+            } 
+
             $hasExisingPickup = Trip::where('driver_id', $model->driver_id)
                 ->where('type',  $model->type)
                 ->where('status', 'ONGOING')
@@ -32,6 +38,14 @@ class Trip extends Model
             }
             return $model;
         });
+
+        //UPDATING
+        static::updating(function ($model) {
+            if ($model->type == 'AWAITING FOR PICKUP') {
+                $model->type = 'PICKUP';
+            }
+            return $model;
+        }); 
     }
 
     //GETTER FRO driver_text

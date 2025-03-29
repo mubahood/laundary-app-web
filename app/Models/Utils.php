@@ -215,12 +215,33 @@ class Utils extends Model
     //mail sender
     public static function mail_sender($data)
     {
-        return;
-        try {
-            //$data['email']
-            if (env('APP_DEBUG')) {
+        $dummy_mails = [
+            'customer@gmail.com',
+            'admin@gmail.com',
+            'driver@gmail.com',
+        ];
+
+        if (is_array($data['email'])) {
+            $new_malils = [];
+            foreach ($data['email'] as $key => $email) {
+                if (in_array($email, $dummy_mails)) {
+                    continue;
+                }
+                $new_malils[] = $email;
+            }
+            //if emails are all dummy
+            if (count($new_malils) < 1) {
+                $new_malils[] = 'mubahood360@gmail.com';
+            }
+            $data['email'] = $new_malils;
+        } else {
+            if (in_array($data['email'], $dummy_mails)) {
                 $data['email'] = 'mubahood360@gmail.com';
             }
+        }
+
+        try {
+
             Mail::send(
                 'mail',
                 [
@@ -241,6 +262,55 @@ class Utils extends Model
         }
     }
 
+
+    public static function get_admin_emails()
+    {
+        $admin_role = AdminRole::where('slug', 'admin')->first();
+        if ($admin_role == null) {
+            return [];
+        }
+        $user_ids = AdminRoleUser::where('role_id', $admin_role->id)->get()->pluck('user_id');
+        $users = User::whereIn('id', $user_ids)->get();
+        $valid_mails = [];
+        foreach ($users as $key => $user) {
+            if (Utils::validateEmail($user->email)) {
+                $valid_mails[] = $user->email;
+            }
+        }
+        return $valid_mails;
+    }
+
+
+    public static function get_drivers()
+    {
+        $admin_role = AdminRole::where('slug', 'driver')->first();
+        if ($admin_role == null) {
+            return [];
+        }
+        $user_ids = AdminRoleUser::where('role_id', $admin_role->id)->get()->pluck('user_id');
+        $users = User::whereIn('id', $user_ids)->get();
+        $valid_mails = [];
+        foreach ($users as $key => $user) {
+            $valid_mails[$user->id] = $user->id . ". " . $user->name;
+        }
+        return $valid_mails;
+    }
+
+
+    public static function get_warshers()
+    {
+        $admin_role = AdminRole::where('slug', 'washer')->first(); 
+        if ($admin_role == null) {
+            return [];
+        }
+        $user_ids = AdminRoleUser::where('role_id', $admin_role->id)->get()->pluck('user_id');
+        $users = User::whereIn('id', $user_ids)->get();
+        $valid_mails = [];
+        foreach ($users as $key => $user) {
+            $valid_mails[$user->id] = $user->id . ". " . $user->name;
+        }
+        return $valid_mails;
+    }
 
     public static function response($data = [])
     {

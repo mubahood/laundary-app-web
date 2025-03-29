@@ -737,7 +737,7 @@ class ApiAuthController extends Controller
 
         $accepted_tasks = [
             'BILLING',
-            'PICKUP',
+            'AWAITING PICKUP',
             strtoupper('Picked Up'),
             strtoupper('Washing in Progress'),
             'ASSIGN WASHER',
@@ -799,12 +799,12 @@ class ApiAuthController extends Controller
             return $this->success($order, $message = "Order is out for delivery.", 200);
         }
 
-        if (!$isCreating && $val->task == 'READY FOR DELIVERY') {
-            $driver = User::find($val->driver_id);
+        if (!$isCreating && $val->task == 'READY FOR DELIVERY') { 
+            $driver = User::find($val->delivery_driver_id);
             if ($driver == null) {
-                return $this->error('Driver not found.');
+                return $this->error('Delivery Driver not found.');
             }
-            $order->driver_id = $driver->id;
+            $order->delivery_driver_id = $driver->id;
             $order->status = strtoupper('Ready for Delivery');
             $order->delivery_notes = rand(10000, 99999);  //generate random number
             try {
@@ -993,7 +993,7 @@ class ApiAuthController extends Controller
             return $this->success($order, $message = "Billing updated successfully. #" . $order->id, 200);
         }
 
-        if (!$isCreating && $val->task == 'PICKUP') {
+        if (!$isCreating && $val->task == 'AWAITING PICKUP') {
             //driver_id
             $driver = User::find($val->driver_id);
             if ($driver == null) {
