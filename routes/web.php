@@ -22,6 +22,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 
+Route::get('app', function () {
+    return view('app');
+});
 Route::get('test-orders', function () {
 
     $lastOder = LaundryOrder::latest()->first();
@@ -243,10 +246,7 @@ Route::get('regenerate-invoice', function () {
 
 
 
-Route::get('app', function () {
-    //return url('taskease-v1.apk');
-    return redirect(url('taskease-v1.apk'));
-});
+
 Route::get('report', function () {
 
     $id = $_GET['id'];

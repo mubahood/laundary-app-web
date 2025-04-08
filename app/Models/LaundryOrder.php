@@ -634,9 +634,29 @@ local_id
     //getter for customer_photos
     public function getCustomerPhotosAttribute($value)
     {
-        $images = Image::where('product_id', $this->local_id)->get();
+        $images_1 = Image::where('product_id', $this->local_id)->get();
+        $images_2 = Image::where('parent_id', $this->local_id)->get();
+        $images_3 = Image::where('parent_id', $this->id)->get();
+        $images_4 = Image::where('product_id', $this->id)->get();
+        
+        $images = $images_1;
+        foreach ($images_2 as $image) {
+            $images[] = $image;
+        }
+        foreach ($images_3 as $image) {
+            $images[] = $image;
+        }
+        foreach ($images_4 as $image) {
+            $images[] = $image;
+        }
+
         $items = [];
+        $ids = [];
         foreach ($images as $key => $value) {
+            if (in_array($value->id, $ids)) {
+                continue;
+            }
+            $ids[] = $value->id;
             $val['id'] = $value->id;
             $val['src'] = $value->src;
             $val['type'] = $value->type;

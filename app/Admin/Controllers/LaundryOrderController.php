@@ -60,7 +60,7 @@ class LaundryOrderController extends AdminController
             ->sortable()
             ->display(function ($pickup_gps) {
                 return $pickup_gps;
-            })->copyable(true);
+            })->editable();
         $grid->column('delivery_address', __('Delivery address'));
         $grid->column('special_instructions', __('Special instructions'))
             ->display(function ($special_instructions) {
@@ -253,6 +253,9 @@ class LaundryOrderController extends AdminController
         $form->display('pickup_address', __('Pickup Address'))->default($order->pickup_address);
         $form->display('pickup_gps', __('Pickup GPS'))->default($order->pickup_gps);
         $form->divider('UPDATE ORDER STATUS');
+        
+        $form->textarea('special_instructions', __('Special instructions'));
+
         $form->radio('status', 'Order Status')->options([
             'PENDING' => 'PENDING',
             'AWAITING PICKUP' => 'AWAITING PICKUP',
@@ -310,7 +313,6 @@ class LaundryOrderController extends AdminController
         $form->textarea('pickup_address', __('Pickup address'));
         $form->textarea('pickup_gps', __('Pickup gps'));
         $form->textarea('delivery_address', __('Delivery address'));
-        $form->textarea('special_instructions', __('Special instructions'));
         $form->decimal('total_amount', __('Total amount'));
         $form->text('payment_status', __('Payment status'))->default('Unpaid');
         $form->textarea('payment_method', __('Payment method'));

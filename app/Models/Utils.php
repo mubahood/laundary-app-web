@@ -215,6 +215,7 @@ class Utils extends Model
     //mail sender
     public static function mail_sender($data)
     {
+        return;
         $dummy_mails = [
             'customer@gmail.com',
             'admin@gmail.com',
@@ -299,7 +300,7 @@ class Utils extends Model
 
     public static function get_warshers()
     {
-        $admin_role = AdminRole::where('slug', 'washer')->first(); 
+        $admin_role = AdminRole::where('slug', 'washer')->first();
         if ($admin_role == null) {
             return [];
         }
