@@ -12,10 +12,10 @@
     <meta property="og:title" content="Download Fabricare - Your Trusted Laundry Service">
     <meta property="og:description" content="Get fresh and clean clothes delivered to your doorstep with the Fabricare app. Download now!">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="http://fabricare.app"> <meta property="og:image" content="http://localhost/laundary-app-web/assets/img/logo.png"> <meta name="twitter:card" content="summary_large_image">
+    <meta property="og:url" content="http://fabricare.app"> <meta property="og:image" content="https://admin.fabricare.app/assets/img/logo.png"> <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Download Fabricare - Your Trusted Laundry Service">
     <meta name="twitter:description" content="Schedule your laundry pickup and enjoy professional cleaning with the Fabricare app. Available on Android and iOS.">
-    <meta name="twitter:image" content="http://localhost/laundary-app-web/assets/img/logo.png"> <link rel="icon" href="/assets/img/favicon.ico" type="image/x-icon"> <style>
+    <meta name="twitter:image" content="https://admin.fabricare.app/assets/img/logo.png"> <link rel="icon" href="/assets/img/favicon.ico" type="image/x-icon"> <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -212,7 +212,7 @@
 <body>
     <div class="container">
         <div class="logo-container">
-            <img src="http://localhost/laundary-app-web/assets/img/logo.png" alt="Fabricare Logo" class="logo">
+            <img src="https://admin.fabricare.app/assets/img/logo.png" alt="Fabricare Logo" class="logo">
         </div>
         <h1>Your Trusted Laundry Service</h1>
         <p>Get fresh and clean clothes delivered right to your doorstep with Fabricare.</p>
