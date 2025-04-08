@@ -15,7 +15,8 @@
     <meta property="og:url" content="http://fabricare.app"> <meta property="og:image" content="https://admin.fabricare.app/assets/img/logo.png"> <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Download Fabricare - Your Trusted Laundry Service">
     <meta name="twitter:description" content="Schedule your laundry pickup and enjoy professional cleaning with the Fabricare app. Available on Android and iOS.">
-    <meta name="twitter:image" content="https://admin.fabricare.app/assets/img/logo.png"> <link rel="icon" href="/assets/img/favicon.ico" type="image/x-icon"> <style>
+    <meta name="twitter:image" content="https://admin.fabricare.app/assets/img/logo.png"> 
+    <link rel="icon" href="https://admin.fabricare.app/assets/img/logo.png" type="image/x-icon"> <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
